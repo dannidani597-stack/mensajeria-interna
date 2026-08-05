@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.MensajeriaInterna" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
