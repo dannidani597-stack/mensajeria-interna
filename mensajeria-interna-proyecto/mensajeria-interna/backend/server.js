@@ -16,11 +16,21 @@ const db = require('./db');
 
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'CAMBIA_ESTE_SECRETO_ANTES_DE_PRODUCCION';
+const ADMIN_KEY = process.env.ADMIN_KEY || 'CAMBIA_ESTA_CLAVE_DE_ADMIN';
 const CHANNEL = 'general'; // MVP: un solo canal. Se puede ampliar a multiples canales despues.
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname + '/public'));
+
+function adminAuth(req, res, next) {
+  const key = req.headers['x-admin-key'];
+  if (!key || key !== ADMIN_KEY) {
+    return res.status(401).json({ error: 'Clave de administrador incorrecta' });
+  }
+  next();
+}
 
 app.get('/', (req, res) => {
   res.json({ ok: true, service: 'mensajeria-interna-backend' });
@@ -76,6 +86,25 @@ app.post('/api/login', (req, res) => {
 });
 
 // ---- Historial de mensajes (paginado simple) ----
+// ---- Administracion (protegido con ADMIN_KEY, header x-admin-key) ----
+app.get('/api/admin/users', adminAuth, (req, res) => {
+  const users = db.prepare('SELECT id, username, display_name, created_at FROM users ORDER BY username').all();
+  res.json({ users });
+});
+
+app.post('/api/admin/reset-password', adminAuth, (req, res) => {
+  const { username, newPassword } = req.body || {};
+  if (!username || !newPassword || newPassword.length < 4) {
+    return res.status(400).json({ error: 'username y newPassword (min 4 caracteres) son requeridos' });
+  }
+  const user = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
+  if (!user) return res.status(404).json({ error: 'Ese usuario no existe' });
+
+  const hash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, user.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/messages', authMiddleware, (req, res) => {
   const channelId = getChannelId();
   const limit = Math.min(parseInt(req.query.limit) || 50, 200);
