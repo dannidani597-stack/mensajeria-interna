@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin · Gerencia Sureste</title>
+<style>
+  :root{
+    --bg:#0E1013; --panel:#171A1F; --panel-2:#1F232A; --border:#282D36;
+    --text:#ECEAE4; --muted:#8B93A1; --amber:#FF8A3D; --amber-dim:#4A3220;
+    --danger:#E5564A; --teal:#34D6B8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:system-ui,-apple-system,sans-serif; min-height:100vh;
+    display:flex; align-items:flex-start; justify-content:center; padding:40px 16px;
+  }
+  .wrap{width:min(600px,100%);}
+  h1{font-size:20px; margin:0 0 4px;}
+  .sub{color:var(--muted); font-size:13px; margin:0 0 24px;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px;}
+  input{
+    width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:10px 12px; font-size:14px; outline:none; margin-bottom:10px;
+  }
+  input:focus{border-color:var(--amber);}
+  button{
+    background:var(--amber); color:#1A1207; border:none; border-radius:8px;
+    padding:10px 16px; font-weight:700; font-size:13px; cursor:pointer;
+  }
+  button.secondary{background:var(--panel-2); color:var(--text); border:1px solid var(--border);}
+  button.danger{background:var(--danger); color:#fff;}
+  .user-row{
+    display:flex; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .user-row:last-child{border-bottom:none;}
+  .user-row .name{flex:1;}
+  .user-row .name b{display:block; font-size:14px;}
+  .user-row .name span{display:block; font-size:12px; color:var(--muted);}
+  .msg{font-size:13px; padding:10px; border-radius:8px; margin-bottom:10px;}
+  .msg.ok{background:rgba(52,214,184,.1); color:var(--teal); border:1px solid rgba(52,214,184,.3);}
+  .msg.err{background:rgba(229,86,74,.1); color:var(--danger); border:1px solid rgba(229,86,74,.3);}
+  #gate, #panel{display:none;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Panel de administración</h1>
+  <div class="sub">Gerencia Sureste · Canal Moderno</div>
+
+  <div id="gate" class="card" style="display:block">
+    <input id="adminKey" type="password" placeholder="Clave de administrador">
+    <button onclick="enter()">Entrar</button>
+    <div id="gateMsg"></div>
+  </div>
+
+  <div id="panel">
+    <div class="card">
+      <div id="opMsg"></div>
+      <input id="resetUsername" placeholder="Usuario a resetear (ej. daniel)">
+      <input id="resetPassword" placeholder="Nueva contraseña (mín. 4 caracteres)">
+      <button onclick="resetPassword()">Resetear contraseña</button>
+    </div>
+
+    <div class="card">
+      <div class="sub" style="margin-bottom:12px;">Usuarios registrados</div>
+      <div id="userList">Cargando...</div>
+      <button class="secondary" onclick="loadUsers()" style="margin-top:10px;">Actualizar lista</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let adminKey = '';
+
+async function enter() {
+  const key = document.getElementById('adminKey').value.trim();
+  if (!key) return;
+  const res = await fetch('/api/admin/users', { headers: { 'x-admin-key': key } });
+  if (!res.ok) {
+    document.getElementById('gateMsg').innerHTML = '<div class="msg err">Clave incorrecta</div>';
+    return;
+  }
+  adminKey = key;
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('panel').style.display = 'block';
+  loadUsers();
+}
+
+async function loadUsers() {
+  const res = await fetch('/api/admin/users', { headers: { 'x-admin-key': adminKey } });
+  const data = await res.json();
+  const list = document.getElementById('userList');
+  if (!data.users || data.users.length === 0) {
+    list.innerHTML = '<div class="sub">Aún no hay usuarios registrados.</div>';
+    return;
+  }
+  list.innerHTML = data.users.map(u => `
+    <div class="user-row">
+      <div class="name">
+        <b>${escapeHtml(u.display_name)}</b>
+        <span>usuario: ${escapeHtml(u.username)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function resetPassword() {
+  const username = document.getElementById('resetUsername').value.trim();
+  const newPassword = document.getElementById('resetPassword').value;
+  const msgEl = document.getElementById('opMsg');
+  if (!username || !newPassword) {
+    msgEl.innerHTML = '<div class="msg err">Completa usuario y nueva contraseña</div>';
+    return;
+  }
+  const res = await fetch('/api/admin/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+    body: JSON.stringify({ username, newPassword })
+  });
+  const data = await res.json();
+  if (res.ok) {
+    msgEl.innerHTML = `<div class="msg ok">Contraseña de "${escapeHtml(username)}" actualizada. Ya puede iniciar sesión con la nueva.</div>`;
+    document.getElementById('resetUsername').value = '';
+    document.getElementById('resetPassword').value = '';
+  } else {
+    msgEl.innerHTML = `<div class="msg err">${escapeHtml(data.error || 'Error al resetear')}</div>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+document.getElementById('adminKey').addEventListener('keydown', e => { if (e.key === 'Enter') enter(); });
+</script>
+</body>
+</html>
