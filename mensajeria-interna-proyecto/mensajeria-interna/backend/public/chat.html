@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Gerencia Sureste · Canal Moderno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1013; --panel:#171A1F; --panel-2:#1F232A; --border:#282D36;
+    --text:#ECEAE4; --muted:#8B93A1; --amber:#FF8A3D; --amber-dim:#4A3220;
+    --teal:#34D6B8; --danger:#E5564A;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; overflow:hidden;}
+  #app{height:100vh; display:flex; flex-direction:column;}
+
+  /* ---- Gate (login/register) ---- */
+  #gate{height:100%; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 30% 20%, #1A1E25 0%, var(--bg) 60%);}
+  .gate-card{width:min(360px,88vw); background:var(--panel); border:1px solid var(--border);
+    border-radius:14px; padding:28px 26px 24px;}
+  .gate-eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em;
+    color:var(--amber); text-transform:uppercase; margin-bottom:6px; display:flex; align-items:center; gap:8px;}
+  .gate-eyebrow .dot{width:6px; height:6px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber);}
+  .gate-card h1{font-size:22px; margin:0 0 4px; font-weight:700;}
+  .gate-card p{color:var(--muted); font-size:13px; margin:0 0 20px; line-height:1.5;}
+  .gate-card input{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:12px 13px; font-size:14px; outline:none; margin-bottom:10px;}
+  .gate-card input:focus{border-color:var(--amber);}
+  .gate-card button.primary{width:100%; background:var(--amber); color:#1A1207; border:none;
+    border-radius:9px; padding:12px; font-weight:700; font-size:14px; cursor:pointer;
+    font-family:'JetBrains Mono',monospace; letter-spacing:.04em; text-transform:uppercase; margin-top:6px;}
+  .gate-card button.link{width:100%; background:none; border:none; color:var(--muted); font-size:12.5px;
+    cursor:pointer; margin-top:12px; text-decoration:underline;}
+  .gate-msg{font-size:12.5px; margin-top:10px; padding:8px 10px; border-radius:7px;}
+  .gate-msg.err{background:rgba(229,86,74,.1); color:var(--danger); border:1px solid rgba(229,86,74,.3);}
+  .hidden{display:none !important;}
+
+  /* ---- Top bar ---- */
+  #topbar{display:flex; align-items:center; justify-content:space-between; padding:12px 16px;
+    border-bottom:1px solid var(--border); background:var(--panel); flex-shrink:0;}
+  #topbar .brand{display:flex; align-items:center; gap:10px;}
+  #topbar .brand .mark{width:30px; height:30px; border-radius:8px; background:var(--amber-dim);
+    display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace;
+    color:var(--amber); font-weight:700; font-size:12px;}
+  #topbar .brand-text .ch{font-weight:700; font-size:14px;}
+  #topbar .brand-text .sub{font-size:11px; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+  #onlineChip{display:flex; align-items:center; gap:6px; font-family:'JetBrains Mono',monospace;
+    font-size:11px; color:var(--teal); background:rgba(52,214,184,.08); border:1px solid rgba(52,214,184,.25);
+    padding:5px 10px; border-radius:20px;}
+  #onlineChip .dot{width:6px; height:6px; border-radius:50%; background:var(--teal); box-shadow:0 0 6px var(--teal);
+    animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  #logoutBtn{background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px;
+    padding:6px 12px; font-size:12px; cursor:pointer;}
+
+  #main{height:100%; display:none; flex-direction:column;}
+  #body{flex:1; display:flex; min-height:0;}
+  #roster{width:170px; flex-shrink:0; border-right:1px solid var(--border); background:var(--panel);
+    padding:14px 10px; overflow-y:auto;}
+  #roster .roster-label{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted);
+    letter-spacing:.1em; text-transform:uppercase; padding:0 6px 10px;}
+  .roster-item{display:flex; align-items:center; gap:8px; padding:7px 6px; border-radius:8px;}
+  .callsign{width:26px; height:26px; border-radius:7px; background:var(--panel-2); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace;
+    font-size:10px; font-weight:700; flex-shrink:0;}
+  .roster-item .name{font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+  #chatCol{flex:1; display:flex; flex-direction:column; min-width:0;}
+  #log{flex:1; overflow-y:auto; padding:18px 20px; display:flex; flex-direction:column; gap:14px;}
+  .msg{display:flex; gap:10px; max-width:78%;}
+  .msg.own{align-self:flex-end; flex-direction:row-reverse;}
+  .msg .bubble-wrap{display:flex; flex-direction:column;}
+  .msg.own .bubble-wrap{align-items:flex-end;}
+  .msg .meta{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--muted); margin-bottom:4px;
+    display:flex; gap:6px;}
+  .msg.own .meta{flex-direction:row-reverse;}
+  .bubble{background:var(--panel); border:1px solid var(--border); padding:9px 13px; border-radius:12px;
+    font-size:13.5px; line-height:1.45; word-break:break-word;}
+  .msg.own .bubble{background:var(--amber-dim); border-color:#5B3D24; color:#FFE1C2;}
+
+  #composer{display:flex; gap:10px; padding:12px 16px; border-top:1px solid var(--border);
+    background:var(--panel); flex-shrink:0;}
+  #composer input{flex:1; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:22px; padding:11px 16px; font-size:14px; outline:none;}
+  #composer input:focus{border-color:var(--amber);}
+  #composer button{width:42px; height:42px; border-radius:50%; border:none; background:var(--amber);
+    color:#1A1207; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  #composer button svg{width:18px; height:18px;}
+
+  #connStatus{font-size:11px; color:var(--muted); text-align:center; padding:4px; font-family:'JetBrains Mono',monospace;}
+
+  ::-webkit-scrollbar{width:8px;} ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+  @media (max-width:640px){
+    #roster{width:100%; height:auto; border-right:none; border-bottom:1px solid var(--border);
+      display:flex; flex-direction:row; overflow-x:auto; padding:10px 12px; gap:10px;}
+    #roster .roster-label{display:none;}
+    .roster-item{flex-direction:column; gap:4px; padding:4px 2px; min-width:44px;}
+    .roster-item .name{font-size:9.5px; max-width:44px;}
+    #body{flex-direction:column;}
+    .msg{max-width:88%;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="gate">
+    <div class="gate-card">
+      <div class="gate-eyebrow"><span class="dot"></span>Canal interno · Daniel</div>
+      <h1>Gerencia Sureste</h1>
+      <p id="gateSub">Canal Moderno — inicia sesión con tu cuenta del equipo.</p>
+
+      <div id="loginFields">
+        <input id="loginUsername" placeholder="Usuario" autocomplete="username">
+        <input id="loginPassword" type="password" placeholder="Contraseña" autocomplete="current-password">
+        <button class="primary" onclick="doLogin()">Entrar</button>
+        <button class="link" onclick="showRegister()">Crear una cuenta nueva</button>
+      </div>
+
+      <div id="registerFields" class="hidden">
+        <input id="regDisplayName" placeholder="Tu nombre para mostrar">
+        <input id="regUsername" placeholder="Usuario" autocomplete="username">
+        <input id="regPassword" type="password" placeholder="Contraseña" autocomplete="new-password">
+        <button class="primary" onclick="doRegister()">Crear cuenta</button>
+        <button class="link" onclick="showLogin()">Ya tengo cuenta</button>
+      </div>
+
+      <div id="gateMsg"></div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="topbar">
+      <div class="brand">
+        <div class="mark">GS</div>
+        <div class="brand-text">
+          <div class="ch">Gerencia Sureste</div>
+          <div class="sub">CANAL MODERNO</div>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div id="onlineChip"><span class="dot"></span><span id="onlineCount">0</span> en línea</div>
+        <button id="logoutBtn" onclick="logout()">Salir</button>
+      </div>
+    </div>
+    <div id="connStatus"></div>
+    <div id="body">
+      <div id="roster">
+        <div class="roster-label">En línea</div>
+        <div id="rosterList"></div>
+      </div>
+      <div id="chatCol">
+        <div id="log"></div>
+        <div id="composer">
+          <input id="msgInput" placeholder="Escribe un mensaje…" maxlength="500">
+          <button onclick="sendMessage()" aria-label="Enviar">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M3 11L21 3L13 21L11 13L3 11Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = ''; // mismo origen (servido por el propio backend)
+let token = null, myDisplayName = null, ws = null;
+const online = new Set();
+
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function callsign(name){
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.trim().slice(0,2).toUpperCase();
+}
+function colorFor(name){
+  let h = 0;
+  for (let i=0;i<name.length;i++) h = name.charCodeAt(i) + ((h<<5)-h);
+  return `hsl(${Math.abs(h) % 360} 55% 55%)`;
+}
+function timeFmt(ts){ return new Date(ts).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}); }
+
+function showLogin(){ document.getElementById('loginFields').classList.remove('hidden'); document.getElementById('registerFields').classList.add('hidden'); document.getElementById('gateMsg').innerHTML=''; }
+function showRegister(){ document.getElementById('loginFields').classList.add('hidden'); document.getElementById('registerFields').classList.remove('hidden'); document.getElementById('gateMsg').innerHTML=''; }
+function gateError(msg){ document.getElementById('gateMsg').innerHTML = `<div class="gate-msg err">${escapeHtml(msg)}</div>`; }
+
+async function doLogin(){
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!username || !password) return gateError('Completa usuario y contraseña');
+  try{
+    const res = await fetch(API + '/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password}) });
+    const data = await res.json();
+    if (!res.ok) return gateError(data.error || 'No se pudo iniciar sesión');
+    onAuthed(data.token, data.user.displayName);
+  }catch(e){ gateError('No se pudo conectar al servidor'); }
+}
+
+async function doRegister(){
+  const displayName = document.getElementById('regDisplayName').value.trim();
+  const username = document.getElementById('regUsername').value.trim();
+  const password = document.getElementById('regPassword').value;
+  if (!displayName || !username || !password) return gateError('Completa todos los campos');
+  try{
+    const res = await fetch(API + '/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,displayName}) });
+    const data = await res.json();
+    if (!res.ok) return gateError(data.error || 'No se pudo crear la cuenta');
+    onAuthed(data.token, data.user.displayName);
+  }catch(e){ gateError('No se pudo conectar al servidor'); }
+}
+
+function onAuthed(t, name){
+  token = t; myDisplayName = name;
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('main').style.display = 'flex';
+  loadHistory();
+  connectSocket();
+  document.getElementById('msgInput').focus();
+}
+
+async function loadHistory(){
+  try{
+    const res = await fetch(API + '/api/messages', { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (res.ok) renderLog(data.messages);
+  }catch(e){}
+}
+
+function connectSocket(){
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => { ws.send(JSON.stringify({type:'auth', token})); setConn('conectado'); };
+  ws.onclose = () => { setConn('desconectado — reintentando…'); setTimeout(connectSocket, 3000); };
+  ws.onerror = () => { setConn('error de conexión'); };
+  ws.onmessage = (ev) => {
+    const data = JSON.parse(ev.data);
+    if (data.type === 'message') appendMessage(data.message);
+    if (data.type === 'presence') renderRoster(data.online);
+  };
+}
+function setConn(text){ document.getElementById('connStatus').textContent = text === 'conectado' ? '' : text; }
+
+let messages = [];
+function renderLog(msgs){
+  messages = msgs;
+  const log = document.getElementById('log');
+  log.innerHTML = messages.map(renderBubble).join('');
+  log.scrollTop = log.scrollHeight;
+}
+function appendMessage(m){
+  messages.push(m);
+  const log = document.getElementById('log');
+  const wasNearBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 120;
+  log.insertAdjacentHTML('beforeend', renderBubble(m));
+  if (wasNearBottom) log.scrollTop = log.scrollHeight;
+}
+function renderBubble(m){
+  const own = m.display_name === myDisplayName;
+  const c = colorFor(m.display_name);
+  return `<div class="msg ${own?'own':''}">
+    <div class="callsign" style="background:${c}22;color:${c};border-color:${c}55;">${callsign(m.display_name)}</div>
+    <div class="bubble-wrap">
+      <div class="meta"><span>${escapeHtml(m.display_name)}</span><span>${timeFmt(m.created_at)}</span></div>
+      <div class="bubble">${escapeHtml(m.text)}</div>
+    </div>
+  </div>`;
+}
+
+function renderRoster(names){
+  document.getElementById('onlineCount').textContent = names.length;
+  document.getElementById('rosterList').innerHTML = names.map(name => {
+    const c = colorFor(name);
+    return `<div class="roster-item">
+      <div class="callsign" style="background:${c}22;color:${c};border-color:${c}55;">${callsign(name)}</div>
+      <div class="name">${escapeHtml(name)}${name===myDisplayName?' (tú)':''}</div>
+    </div>`;
+  }).join('');
+}
+
+function sendMessage(){
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({type:'message', text}));
+  input.value = '';
+}
+document.getElementById('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('regPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+function logout(){
+  if (ws) ws.close();
+  token = null; myDisplayName = null;
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('gate').style.display = 'flex';
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+}
+</script>
+</body>
+</html>
