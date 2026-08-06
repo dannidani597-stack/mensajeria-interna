@@ -162,7 +162,62 @@
     .group-item .g-name{font-size:10.5px; max-width:70px; text-align:center;}
     #body{flex-direction:row;}
     .msg{max-width:88%;}
-  }
+  }  /* ---- Funciones nuevas ---- */
+  .unread-badge{background:var(--danger); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px;
+    border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; margin-left:auto;}
+  .group-item{position:relative;}
+  .group-item .g-status{display:flex; align-items:center; gap:6px;}
+
+  .reply-preview{background:var(--accent-light); border-left:3px solid var(--accent-dark); border-radius:8px;
+    padding:6px 10px; font-size:11.5px; color:var(--accent-dark); margin-bottom:4px; cursor:pointer;}
+  .reply-preview b{display:block; font-size:11px;}
+  .reply-preview .rp-cancel{float:right; cursor:pointer; color:var(--muted); font-weight:700;}
+  #replyBar{display:none; padding:8px 16px; background:var(--panel-2); border-top:1px solid var(--border);
+    align-items:center; gap:10px;}
+  #replyBar.show{display:flex;}
+
+  .reactions-row{display:flex; gap:4px; margin-top:4px; flex-wrap:wrap;}
+  .reaction-pill{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:1px 7px;
+    font-size:11.5px; cursor:pointer; display:flex; align-items:center; gap:3px;}
+  .reaction-pill.mine{border-color:var(--accent); background:var(--accent-light);}
+  .react-picker{position:absolute; background:var(--panel); border:1px solid var(--border); border-radius:20px;
+    padding:4px 8px; display:none; gap:4px; box-shadow:0 4px 14px rgba(0,0,0,.15); z-index:20;}
+  .react-picker.show{display:flex;}
+  .react-picker span{cursor:pointer; font-size:18px; padding:2px;}
+  .msg-hover-actions{display:flex; gap:6px; opacity:0; transition:opacity .15s;}
+  .msg:hover .msg-hover-actions{opacity:1;}
+  .msg-hover-actions button{background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    font-size:11px; padding:2px 8px; cursor:pointer; color:var(--muted);}
+
+  #typingIndicator{font-size:11.5px; color:var(--accent-dark); padding:2px 20px; font-style:italic; min-height:18px;}
+
+  .date-separator{align-self:center; font-size:11px; color:var(--muted); background:var(--panel);
+    border-radius:10px; padding:2px 12px; margin:6px 0;}
+
+  #searchModal .search-result{padding:8px 10px; border-bottom:1px solid var(--border); cursor:pointer; font-size:12.5px;}
+  #searchModal .search-result b{color:var(--accent-dark);}
+  #searchModal .search-result .sr-meta{font-size:10.5px; color:var(--muted);}
+
+  .voice-bubble{display:flex; align-items:center; gap:8px; min-width:160px;}
+  .voice-bubble button{background:var(--accent); color:#fff; border:none; border-radius:50%; width:30px; height:30px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;}
+
+  #pinnedBar{background:var(--accent-light); padding:6px 16px; font-size:11.5px; color:var(--accent-dark);
+    display:none; align-items:center; gap:8px; cursor:pointer; border-bottom:1px solid var(--border);}
+  #pinnedBar.show{display:flex;}
+
+  .mention{color:var(--accent-dark); font-weight:600;}
+  .channel-menu{position:absolute; background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    box-shadow:0 4px 14px rgba(0,0,0,.15); z-index:30; display:none; min-width:150px;}
+  .channel-menu.show{display:block;}
+  .channel-menu button{display:block; width:100%; text-align:left; background:none; border:none; padding:9px 14px;
+    font-size:12.5px; cursor:pointer; color:var(--text);}
+  .channel-menu button:hover{background:var(--panel-2);}
+
+  #storiesBar{display:flex; gap:10px; padding:10px 14px; overflow-x:auto; border-bottom:1px solid var(--border);}
+  .story-item{text-align:center; width:52px; flex-shrink:0; cursor:pointer;}
+  .story-item .avatar{width:44px; height:44px; border-radius:50%; border:2px solid var(--accent);}
+  .story-item .s-name{font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -203,14 +258,18 @@
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
         <div id="onlineChip"><span class="dot"></span><span id="onlineCount">0</span> en línea</div>
+        <button class="ghost" onclick="openSearchModal()" title="Buscar">🔍</button>
         <button class="ghost" id="membersBtn" onclick="openMembersModal()">Miembros</button>
         <button class="ghost" id="inviteBtn" onclick="openInviteModal()">Invitar</button>
         <button class="ghost" id="leaveBtn" onclick="leaveCurrentChannel()">Salir del grupo</button>
+        <button class="ghost" onclick="exportCurrentChannel()" title="Exportar">⬇</button>
         <button class="ghost" onclick="openAccountModal()">Cuenta</button>
         <button class="ghost" onclick="logout()">Salir</button>
       </div>
     </div>
     <div id="connStatus"></div>
+    <div id="storiesBar"></div>
+    <div id="pinnedBar" onclick="openPinnedModal()"><span>📌</span><span id="pinnedText"></span></div>
     <div id="body">
       <div id="groupsSidebar">
         <div class="groups-label">Grupos</div>
@@ -220,12 +279,20 @@
       <div id="chatCol">
         <div id="noChannel" class="hidden">Selecciona o crea un grupo para empezar</div>
         <div id="log"></div>
+        <div id="typingIndicator"></div>
         <div id="imagePreviewBar" class="hidden"></div>
+        <div id="replyBar">
+          <div style="flex:1; font-size:12px;">Respondiendo a <b id="replyBarName"></b>: <span id="replyBarText"></span></div>
+          <button class="cancel" onclick="cancelReply()" style="padding:2px 8px;">✕</button>
+        </div>
         <div id="composer">
           <input type="file" id="imageInput" style="display:none" onchange="onImageSelected(event)">
           <button type="button" onclick="document.getElementById('imageInput').click()" aria-label="Adjuntar archivo" title="Adjuntar archivo">
             <svg viewBox="0 0 24 24" fill="none"><path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
+          <button type="button" id="micBtn" onclick="toggleVoiceRecording()" title="Nota de voz">🎤</button>
+          <button type="button" onclick="shareLocation()" title="Compartir ubicación">📍</button>
+          <button type="button" onclick="openPollModal()" title="Encuesta">📊</button>
           <input id="msgInput" placeholder="Escribe un mensaje…" maxlength="500">
           <button onclick="sendMessage()" aria-label="Enviar">
             <svg viewBox="0 0 24 24" fill="none"><path d="M3 11L21 3L13 21L11 13L3 11Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -235,9 +302,48 @@
     </div>
   </div>
 
+  <div id="searchModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>Buscar mensajes</h2>
+      <input id="searchInput" placeholder="Escribe para buscar…" oninput="doSearch()">
+      <div id="searchResults" style="max-height:280px; overflow-y:auto; margin-top:10px;"></div>
+      <div class="modal-actions"><button class="cancel" onclick="closeModal('searchModal')" style="flex:1;">Cerrar</button></div>
+    </div>
+  </div>
+
+  <div id="pinnedModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>Mensajes fijados</h2>
+      <div id="pinnedList" style="max-height:280px; overflow-y:auto;"></div>
+      <div class="modal-actions"><button class="cancel" onclick="closeModal('pinnedModal')" style="flex:1;">Cerrar</button></div>
+    </div>
+  </div>
+
+  <div id="pollModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>Nueva encuesta</h2>
+      <input id="pollQuestion" placeholder="Pregunta">
+      <input id="pollOption1" placeholder="Opción 1">
+      <input id="pollOption2" placeholder="Opción 2">
+      <input id="pollOption3" placeholder="Opción 3 (opcional)">
+      <div id="pollMsg"></div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeModal('pollModal')">Cancelar</button>
+        <button class="confirm" onclick="createPoll()">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="channelMenu" class="channel-menu"></div>
+  <div id="reactPicker" class="react-picker">
+    <span onclick="reactToMsg('👍')">👍</span><span onclick="reactToMsg('❤️')">❤️</span><span onclick="reactToMsg('😂')">😂</span>
+    <span onclick="reactToMsg('😮')">😮</span><span onclick="reactToMsg('😢')">😢</span><span onclick="reactToMsg('🙏')">🙏</span>
+  </div>
+
   <div id="newGroupModal" class="modal-backdrop hidden">
     <div class="modal-card">
       <h2>Nuevo grupo</h2>
+
       <p>Se crea privado — solo tú estarás dentro hasta que invites a alguien.</p>
       <input id="newGroupName" placeholder="Nombre del grupo" maxlength="40">
       <div id="newGroupMsg"></div>
@@ -282,6 +388,20 @@
         </div>
       </div>
       <div id="avatarMsg"></div>
+
+      <p style="margin-top:14px; font-weight:600; font-size:12.5px;">No molestar</p>
+      <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:8px;">
+        <input type="checkbox" id="dndEnabled"> Silenciar fuera de horario
+      </label>
+      <div style="display:flex; gap:8px;">
+        <input type="time" id="dndStart" style="flex:1;">
+        <input type="time" id="dndEnd" style="flex:1;">
+      </div>
+      <button class="cancel" style="width:100%; margin-top:8px;" onclick="saveDnd()">Guardar horario</button>
+
+      <p style="margin-top:14px; font-weight:600; font-size:12.5px;">Notificaciones</p>
+      <button class="cancel" style="width:100%;" onclick="enablePush()">Activar notificaciones push</button>
+
       <p style="margin-top:14px;">Si ya no necesitas tu cuenta, puedes pedir que la eliminen. Un administrador
         revisa y aprueba la solicitud antes de que se borre nada.</p>
       <div id="accountMsg"></div>
@@ -295,11 +415,14 @@
 
 <script>
 const API = ''; // mismo origen (servido por el propio backend)
-let token = null, myDisplayName = null, myAvatarUrl = null, ws = null;
+let token = null, myDisplayName = null, myAvatarUrl = null, myUserId = null, ws = null;
 let pendingFile = null;
 let channels = [];
 let currentChannelId = null;
 let messages = [];
+let pendingReplyId = null;
+let mediaRecorder = null, recordedChunks = [], recordingStart = 0;
+let peerConnection = null, localStream = null, currentCallPeerId = null;
 
 function avatarHtml(name, avatarUrl, sizeClass){
   const c = colorFor(name);
@@ -366,6 +489,7 @@ function onAuthed(t, name, avatarUrl){
   document.getElementById('main').style.display = 'flex';
   connectSocket();
   loadChannels();
+  loadStories();
 }
 
 function connectSocket(){
@@ -386,9 +510,20 @@ function connectSocket(){
       loadHistory(currentChannelId);
     }
     if (data.type === 'message' && data.message.channel_id === currentChannelId) appendMessage(data.message);
+    if (data.type === 'message' && data.message.channel_id !== currentChannelId) loadChannels();
     if (data.type === 'message_edited' && data.channelId === currentChannelId) applyEdit(data.id, data.text, data.edited_at);
     if (data.type === 'message_deleted' && data.channelId === currentChannelId) applyDelete(data.id);
     if (data.type === 'presence' && data.channelId === currentChannelId) renderOnline(data.online);
+    if (data.type === 'typing' && data.channelId === currentChannelId && data.displayName !== myDisplayName) {
+      document.getElementById('typingIndicator').textContent = `${data.displayName} está escribiendo…`;
+    }
+    if (data.type === 'typing_stopped' && data.channelId === currentChannelId) {
+      document.getElementById('typingIndicator').textContent = '';
+    }
+    if (data.type === 'reactions_updated' && data.channelId === currentChannelId) applyReactions(data.id, data.reactions);
+    if (data.type === 'message_pinned' && data.channelId === currentChannelId) { loadHistory(currentChannelId); loadPinned(); }
+    if (data.type === 'poll_voted') { /* se refresca al abrir la encuesta */ }
+    if ((data.type === 'call_offer' || data.type === 'call_answer' || data.type === 'call_ice' || data.type === 'call_end')) onCallSignal(data);
   };
 }
 function setConn(text){ document.getElementById('connStatus').textContent = text === 'conectado' ? '' : text; }
@@ -423,18 +558,45 @@ async function loadChannels(){
 
 function renderGroupsList(){
   const list = document.getElementById('groupsList');
-  list.innerHTML = channels.map(c => {
+  list.innerHTML = channels.filter(c => !c.archived).map(c => {
     const color = colorFor(c.name);
     const initials = c.name.slice(0,2).toUpperCase();
+    const badge = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count > 99 ? '99+' : c.unread_count}</span>` : '';
     return `
-    <div class="group-item ${c.id === currentChannelId ? 'active' : ''}" onclick="selectChannel(${c.id})">
-      <div class="avatar" style="background:${color}">${escapeHtml(initials)}</div>
+    <div class="group-item ${c.id === currentChannelId ? 'active' : ''}" onclick="selectChannel(${c.id})" oncontextmenu="openChannelMenu(event, ${c.id}); return false;">
+      <div class="avatar" style="background:${color}">${c.photo_url ? `<img src="${escapeHtml(c.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeHtml(initials)}</div>
       <div class="g-info">
-        <div class="g-name">${escapeHtml(c.name)}</div>
+        <div class="g-name">${c.pinned ? '📌 ' : ''}${c.muted ? '🔇 ' : ''}${escapeHtml(c.name)}</div>
         <div class="g-sub">${c.name === 'general' ? 'Todo el equipo' : 'Grupo privado'}</div>
       </div>
+      <div class="g-status">${badge}</div>
     </div>`;
   }).join('');
+}
+
+function openChannelMenu(ev, channelId){
+  ev.preventDefault();
+  const menu = document.getElementById('channelMenu');
+  const ch = channels.find(c => c.id === channelId);
+  if (!ch) return;
+  const isGeneral = ch.name === 'general';
+  menu.innerHTML = `
+    <button onclick="toggleChannelFlag(${channelId},'pin',${!ch.pinned})">${ch.pinned ? 'Desfijar' : 'Fijar'} grupo</button>
+    <button onclick="toggleChannelFlag(${channelId},'mute',${!ch.muted})">${ch.muted ? 'Reactivar' : 'Silenciar'} notificaciones</button>
+    ${!isGeneral ? `<button onclick="toggleChannelFlag(${channelId},'archive',true)">Archivar</button>` : ''}
+  `;
+  menu.style.left = ev.pageX + 'px';
+  menu.style.top = ev.pageY + 'px';
+  menu.classList.add('show');
+  document.addEventListener('click', closeChannelMenuOnce, { once: true });
+}
+function closeChannelMenuOnce(){ document.getElementById('channelMenu').classList.remove('show'); }
+async function toggleChannelFlag(channelId, action, enable){
+  await fetch(API + `/api/channels/${channelId}/${action}`, {
+    method: enable ? 'POST' : 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token },
+  });
+  loadChannels();
 }
 
 function selectChannel(channelId){
@@ -448,11 +610,15 @@ function selectChannel(channelId){
   document.getElementById('leaveBtn').classList.toggle('hidden', ch && ch.name === 'general');
   document.getElementById('log').innerHTML = '';
   document.getElementById('onlineCount').textContent = '0';
+  document.getElementById('typingIndicator').textContent = '';
+  cancelReply();
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({type:'join', channelId}));
   }
   loadHistory(channelId);
+  loadPinned();
+  fetch(API + `/api/channels/${channelId}/read`, { method:'POST', headers:{'Authorization':'Bearer '+token} }).then(loadChannels);
   document.getElementById('msgInput').focus();
 }
 
@@ -464,18 +630,40 @@ async function loadHistory(channelId){
   }catch(e){}
 }
 
+function dateLabel(ts){
+  const d = new Date(ts), now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+  if (isToday) return 'Hoy';
+  if (d.toDateString() === yesterday.toDateString()) return 'Ayer';
+  return d.toLocaleDateString('es-MX', { day:'numeric', month:'long' });
+}
 function renderLog(msgs){
   messages = msgs;
   const log = document.getElementById('log');
-  log.innerHTML = messages.map(renderBubble).join('');
+  let html = '', lastDate = null;
+  for (const m of messages){
+    const label = dateLabel(m.created_at);
+    if (label !== lastDate){ html += `<div class="date-separator">${label}</div>`; lastDate = label; }
+    html += renderBubble(m);
+  }
+  log.innerHTML = html;
   log.scrollTop = log.scrollHeight;
 }
 function appendMessage(m){
   messages.push(m);
   const log = document.getElementById('log');
   const wasNearBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 120;
-  log.insertAdjacentHTML('beforeend', renderBubble(m));
+  const label = dateLabel(m.created_at);
+  const lastLabel = messages.length > 1 ? dateLabel(messages[messages.length-2].created_at) : null;
+  let html = '';
+  if (label !== lastLabel) html += `<div class="date-separator">${label}</div>`;
+  html += renderBubble(m);
+  log.insertAdjacentHTML('beforeend', html);
   if (wasNearBottom) log.scrollTop = log.scrollHeight;
+}
+function highlightMentions(text){
+  return escapeHtml(text).replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention">@$1</span>');
 }
 function renderBubble(m){
   const own = m.display_name === myDisplayName;
@@ -488,19 +676,48 @@ function renderBubble(m){
         <div class="file-size">${m.file_size ? fmtSize(m.file_size) : ''}</div>
       </div>
     </a>` : '';
-  const txt = m.text ? `<div class="bubble" id="bubble-text-${m.id}">${escapeHtml(m.text)}</div>` : '';
+  const voiceCard = m.voice_url ? `
+    <div class="voice-bubble">
+      <button onclick="this.nextElementSibling.paused ? this.nextElementSibling.play() : this.nextElementSibling.pause()">▶</button>
+      <audio src="${escapeHtml(m.voice_url)}" style="display:none" controls></audio>
+      <span style="font-size:12px;">Nota de voz${m.voice_duration ? ' · ' + m.voice_duration + 's' : ''}</span>
+    </div>` : '';
+  const locationCard = (m.location_lat && m.location_lng) ? `
+    <a class="file-card" href="https://www.google.com/maps?q=${m.location_lat},${m.location_lng}" target="_blank">
+      <div class="file-icon">📍</div><div class="file-info"><div class="file-name">Ubicación compartida</div></div>
+    </a>` : '';
+  const replyHtml = m.reply_preview ? `
+    <div class="reply-preview" onclick="document.getElementById('msg-${m.reply_preview.id}')?.scrollIntoView({behavior:'smooth',block:'center'})">
+      <b>${escapeHtml(m.reply_preview.display_name)}</b>${escapeHtml((m.reply_preview.text||'').slice(0,80))}
+    </div>` : '';
+  const txt = m.text ? `<div class="bubble" id="bubble-text-${m.id}">${highlightMentions(m.text)}</div>` : '';
   const editedTag = m.edited_at ? `<span class="edited-tag">editado</span>` : '';
+  const reactions = (m.reactions || []).map(r => `<span class="reaction-pill" onclick="reactToMsg('${r.emoji}',${m.id})">${r.emoji} ${r.count}</span>`).join('');
+  const reactionsRow = reactions ? `<div class="reactions-row">${reactions}</div>` : '';
+  const hoverActions = `<span class="msg-hover-actions">
+      <button onclick="startReply(${m.id})">Responder</button>
+      <button onclick="openReactPicker(event,${m.id})">😀</button>
+      <button onclick="forwardMessage(${m.id})">Reenviar</button>
+      ${own ? `<button onclick="togglePin(${m.id})">Fijar</button>` : ''}
+    </span>`;
   const actions = own ? `<span class="msg-actions">
       ${m.text ? `<button onclick="startEdit(${m.id})">Editar</button>` : ''}
       <button onclick="deleteMessage(${m.id})">Borrar</button>
-    </span>` : '';
+    </span>` : `<span class="msg-actions"><button onclick="deleteForMe(${m.id})">Ocultar para mí</button></span>`;
   return `<div class="msg ${own?'own':''}" id="msg-${m.id}">
     ${avatarHtml(m.display_name, m.avatar_url, 'callsign')}
     <div class="bubble-wrap">
-      <div class="meta"><span>${escapeHtml(m.display_name)}</span><span>${timeFmt(m.created_at)}</span>${editedTag}${actions}</div>
-      <div id="bubble-wrap-inner-${m.id}">${img}${fileCard}${txt}</div>
+      <div class="meta"><span>${escapeHtml(m.display_name)}</span><span>${timeFmt(m.created_at)}</span>${editedTag}${actions}${hoverActions}</div>
+      <div id="bubble-wrap-inner-${m.id}">${replyHtml}${img}${fileCard}${voiceCard}${locationCard}${txt}${reactionsRow}</div>
     </div>
   </div>`;
+}
+function applyReactions(id, reactions){
+  const m = messages.find(x => x.id === id);
+  if (!m) return;
+  m.reactions = reactions;
+  const el = document.getElementById('msg-' + id);
+  if (el) el.outerHTML = renderBubble(m);
 }
 
 function startEdit(id){
@@ -558,23 +775,43 @@ function renderOnline(names){
   document.getElementById('onlineCount').textContent = names.length;
 }
 
-function onImageSelected(ev){
-  const file = ev.target.files[0];
+function setPendingFile(file){
   if (!file) return;
-  if (file.size > 20 * 1024 * 1024) { alert('El archivo pesa más de 20 MB, elige uno más ligero'); ev.target.value = ''; return; }
+  if (file.size > 20 * 1024 * 1024) { alert('El archivo pesa más de 20 MB, elige uno más ligero'); return; }
   pendingFile = file;
   const bar = document.getElementById('imagePreviewBar');
   bar.classList.remove('hidden');
   if (file.type.startsWith('image/')) {
     const reader = new FileReader();
     reader.onload = () => {
-      bar.innerHTML = `<img src="${reader.result}"><div class="label">${escapeHtml(file.name)} · ${fmtSize(file.size)}</div><button class="cancel" onclick="cancelImage()">Quitar</button>`;
+      bar.innerHTML = `<img src="${reader.result}"><div class="label">${escapeHtml(file.name || 'imagen pegada')} · ${fmtSize(file.size)}</div><button class="cancel" onclick="cancelImage()">Quitar</button>`;
     };
     reader.readAsDataURL(file);
   } else {
     bar.innerHTML = `<div class="label">📎 ${escapeHtml(file.name)} · ${fmtSize(file.size)}</div><button class="cancel" onclick="cancelImage()">Quitar</button>`;
   }
 }
+function onImageSelected(ev){
+  const file = ev.target.files[0];
+  setPendingFile(file);
+}
+// Pegar una captura de pantalla directo desde el portapapeles (Ctrl+V / Cmd+V)
+// mientras el cursor esta en el campo de mensaje — sin esto, solo se podia
+// adjuntar eligiendo un archivo con el boton de clip.
+document.getElementById('msgInput').addEventListener('paste', (ev) => {
+  const items = ev.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) {
+        ev.preventDefault();
+        setPendingFile(file);
+      }
+      break;
+    }
+  }
+});
 function cancelImage(){
   pendingFile = null;
   document.getElementById('imageInput').value = '';
@@ -604,11 +841,17 @@ function sendMessage(){
     alert('Sin conexión por ahora — reintentando automáticamente. Vuelve a intentar en unos segundos.');
     return;
   }
+  // Deteccion de duplicados: avisa si vas a mandar algo muy parecido a tu ultimo mensaje.
+  const myLast = [...messages].reverse().find(m => m.display_name === myDisplayName && m.text);
+  if (myLast && text && myLast.text && text.toLowerCase() === myLast.text.toLowerCase() && (Date.now() - myLast.created_at) < 60000) {
+    if (!confirm('Parece que ya mandaste algo muy parecido hace poco. ¿Enviar de todos modos?')) return;
+  }
 
+  const replyToId = pendingReplyId;
   if (pendingFile) {
     uploadPendingFile()
       .then(data => {
-        const payload = { type:'message', text };
+        const payload = { type:'message', text, replyToId };
         if (data.isImage) payload.imageUrl = data.url;
         else { payload.fileUrl = data.url; payload.fileName = data.name; payload.fileSize = data.size; }
         ws.send(JSON.stringify(payload));
@@ -616,9 +859,29 @@ function sendMessage(){
       .catch(err => alert(err.message));
     cancelImage();
   } else {
-    ws.send(JSON.stringify({type:'message', text}));
+    ws.send(JSON.stringify({type:'message', text, replyToId}));
   }
   input.value = '';
+  cancelReply();
+}
+let typingSentAt = 0;
+document.getElementById('msgInput').addEventListener('input', () => {
+  if (!ws || ws.readyState !== WebSocket.OPEN || !currentChannelId) return;
+  const now = Date.now();
+  if (now - typingSentAt > 1500) { ws.send(JSON.stringify({type:'typing'})); typingSentAt = now; }
+});
+function startReply(id){
+  const m = messages.find(x => x.id === id);
+  if (!m) return;
+  pendingReplyId = id;
+  document.getElementById('replyBarName').textContent = m.display_name;
+  document.getElementById('replyBarText').textContent = (m.text || '(archivo/imagen)').slice(0,60);
+  document.getElementById('replyBar').classList.add('show');
+  document.getElementById('msgInput').focus();
+}
+function cancelReply(){
+  pendingReplyId = null;
+  document.getElementById('replyBar').classList.remove('show');
 }
 document.getElementById('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
@@ -790,6 +1053,244 @@ function logout(){
   document.getElementById('loginUsername').value = '';
   document.getElementById('loginPassword').value = '';
 }
+
+// ---- Reacciones ----
+let reactPickerTargetId = null;
+function openReactPicker(ev, id){
+  ev.stopPropagation();
+  reactPickerTargetId = id;
+  const picker = document.getElementById('reactPicker');
+  picker.style.left = ev.pageX + 'px';
+  picker.style.top = (ev.pageY - 40) + 'px';
+  picker.classList.add('show');
+  document.addEventListener('click', () => picker.classList.remove('show'), { once: true });
+}
+async function reactToMsg(emoji, id){
+  const targetId = id || reactPickerTargetId;
+  if (!targetId) return;
+  const m = messages.find(x => x.id === targetId);
+  const already = m && (m.reactions||[]).some(r => r.emoji === emoji && r.mine);
+  await fetch(API + `/api/messages/${targetId}/react${already ? '/' + encodeURIComponent(emoji) : ''}`, {
+    method: already ? 'DELETE' : 'POST',
+    headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+    body: already ? undefined : JSON.stringify({emoji}),
+  });
+  document.getElementById('reactPicker').classList.remove('show');
+}
+
+// ---- Responder ya cubierto arriba (startReply/cancelReply) ----
+
+// ---- Reenviar ----
+async function forwardMessage(id){
+  const target = prompt('¿A qué grupo reenviar? Escribe el nombre exacto del grupo:');
+  if (!target) return;
+  const ch = channels.find(c => c.name.toLowerCase() === target.trim().toLowerCase());
+  if (!ch) { alert('No encontré ese grupo (o no eres miembro)'); return; }
+  const res = await fetch(API + `/api/messages/${id}/forward`, {
+    method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+    body: JSON.stringify({ channelId: ch.id }),
+  });
+  if (res.ok) alert('Reenviado a ' + ch.name);
+}
+
+// ---- Fijar mensajes ----
+async function togglePin(id){
+  const m = messages.find(x => x.id === id);
+  const pinned = m && m.pinned;
+  await fetch(API + `/api/messages/${id}/pin`, { method: pinned ? 'DELETE' : 'POST', headers: { 'Authorization':'Bearer '+token } });
+  loadPinned();
+}
+async function loadPinned(){
+  if (!currentChannelId) return;
+  const res = await fetch(API + `/api/channels/${currentChannelId}/pinned-messages`, { headers: { 'Authorization':'Bearer '+token } });
+  const data = await res.json();
+  const bar = document.getElementById('pinnedBar');
+  if (data.messages && data.messages.length > 0) {
+    document.getElementById('pinnedText').textContent = data.messages[0].text || 'Mensaje fijado';
+    bar.classList.add('show');
+  } else {
+    bar.classList.remove('show');
+  }
+}
+async function openPinnedModal(){
+  const res = await fetch(API + `/api/channels/${currentChannelId}/pinned-messages`, { headers: { 'Authorization':'Bearer '+token } });
+  const data = await res.json();
+  document.getElementById('pinnedList').innerHTML = (data.messages||[]).map(m =>
+    `<div class="user-row" style="padding:8px 0;"><b>${escapeHtml(m.display_name)}</b>: ${escapeHtml(m.text||'(archivo)')}</div>`
+  ).join('') || '<p style="font-size:12px;color:var(--muted);">No hay mensajes fijados.</p>';
+  document.getElementById('pinnedModal').classList.remove('hidden');
+}
+
+// ---- Borrar solo para mi ----
+async function deleteForMe(id){
+  if (!confirm('¿Ocultar este mensaje solo para ti?')) return;
+  await fetch(API + `/api/messages/${id}/delete-for-me`, { method:'POST', headers: { 'Authorization':'Bearer '+token } });
+  applyDelete(id);
+}
+
+// ---- Buscar ----
+function openSearchModal(){
+  document.getElementById('searchModal').classList.remove('hidden');
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchResults').innerHTML = '';
+  document.getElementById('searchInput').focus();
+}
+let searchTimer = null;
+function doSearch(){
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const q = document.getElementById('searchInput').value.trim();
+    if (q.length < 2) { document.getElementById('searchResults').innerHTML = ''; return; }
+    const res = await fetch(API + '/api/search?q=' + encodeURIComponent(q), { headers: { 'Authorization':'Bearer '+token } });
+    const data = await res.json();
+    document.getElementById('searchResults').innerHTML = (data.results||[]).map(r => `
+      <div class="search-result" onclick="jumpToSearchResult(${r.channel_id},${r.id})">
+        <div><b>${escapeHtml(r.display_name)}</b> en ${escapeHtml(r.channel_name)}</div>
+        <div>${escapeHtml((r.text||'').slice(0,80))}</div>
+        <div class="sr-meta">${timeFmt(r.created_at)}</div>
+      </div>
+    `).join('') || '<p style="font-size:12px;color:var(--muted);">Sin resultados.</p>';
+  }, 300);
+}
+function jumpToSearchResult(channelId, msgId){
+  closeModal('searchModal');
+  selectChannel(channelId);
+  setTimeout(() => document.getElementById('msg-'+msgId)?.scrollIntoView({behavior:'smooth',block:'center'}), 600);
+}
+
+// ---- Exportar ----
+async function exportCurrentChannel(){
+  if (!currentChannelId) return;
+  const res = await fetch(API + `/api/channels/${currentChannelId}/export`, { headers: { 'Authorization':'Bearer '+token } });
+  const data = await res.json();
+  const blob = new Blob([data.text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${data.channelName}.txt`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ---- Encuestas ----
+function openPollModal(){
+  document.getElementById('pollModal').classList.remove('hidden');
+  document.getElementById('pollQuestion').value = '';
+  document.getElementById('pollOption1').value = '';
+  document.getElementById('pollOption2').value = '';
+  document.getElementById('pollOption3').value = '';
+  document.getElementById('pollMsg').innerHTML = '';
+}
+async function createPoll(){
+  const question = document.getElementById('pollQuestion').value.trim();
+  const options = [document.getElementById('pollOption1').value.trim(), document.getElementById('pollOption2').value.trim(), document.getElementById('pollOption3').value.trim()].filter(Boolean);
+  if (!question || options.length < 2) { document.getElementById('pollMsg').innerHTML = '<div class="gate-msg err">Se necesita pregunta y al menos 2 opciones</div>'; return; }
+  const res = await fetch(API + `/api/channels/${currentChannelId}/polls`, {
+    method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+    body: JSON.stringify({ question, options }),
+  });
+  if (res.ok) closeModal('pollModal');
+}
+
+// ---- No molestar ----
+async function saveDnd(){
+  const enabled = document.getElementById('dndEnabled').checked;
+  const start = document.getElementById('dndStart').value;
+  const end = document.getElementById('dndEnd').value;
+  await fetch(API + '/api/account/dnd', {
+    method:'PATCH', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+    body: JSON.stringify({ enabled, start, end }),
+  });
+  alert('Horario guardado');
+}
+
+// ---- Notificaciones push (Web Push) ----
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
+async function enablePush(){
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) { alert('Tu navegador no soporta notificaciones push'); return; }
+  try{
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { alert('No se otorgó el permiso de notificaciones'); return; }
+    const keyRes = await fetch(API + '/api/push/public-key');
+    const { publicKey } = await keyRes.json();
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+    await fetch(API + '/api/push/subscribe', {
+      method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+token },
+      body: JSON.stringify(sub),
+    });
+    alert('Notificaciones activadas');
+  }catch(e){ alert('No se pudieron activar las notificaciones'); }
+}
+
+// ---- Notas de voz ----
+async function toggleVoiceRecording(){
+  const btn = document.getElementById('micBtn');
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    btn.textContent = '🎤';
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordedChunks = [];
+    recordingStart = Date.now();
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+      const duration = Math.round((Date.now() - recordingStart) / 1000);
+      const form = new FormData();
+      form.append('file', blob, 'nota.webm');
+      const res = await fetch(API + '/api/upload', { method:'POST', headers: { 'Authorization':'Bearer '+token }, body: form });
+      const data = await res.json();
+      if (res.ok && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type:'message', text:'', voiceUrl: data.url, voiceDuration: duration }));
+      }
+    };
+    mediaRecorder.start();
+    btn.textContent = '⏹';
+  }catch(e){ alert('No se pudo acceder al micrófono'); }
+}
+
+// ---- Ubicacion en vivo ----
+function shareLocation(){
+  if (!navigator.geolocation) { alert('Tu navegador no soporta ubicación'); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type:'message', text:'', lat: pos.coords.latitude, lng: pos.coords.longitude }));
+    }
+  }, () => alert('No se pudo obtener tu ubicación'));
+}
+
+// ---- Llamadas (WebRTC) — señalización basica ----
+function onCallSignal(data){
+  // Implementacion minima: solo confirma que la señalizacion llega.
+  // La interfaz completa de llamada (UI de video/audio) queda como siguiente paso.
+  if (data.type === 'call_offer') {
+    if (confirm(`Llamada entrante de ${data.fromDisplayName}. ¿Contestar?`)) {
+      ws.send(JSON.stringify({ type:'call_answer', toUserId: data.fromUserId, accepted: true }));
+    }
+  }
+}
+
+// ---- Estados / historias ----
+async function loadStories(){
+  const res = await fetch(API + '/api/stories', { headers: { 'Authorization':'Bearer '+token } });
+  const data = await res.json();
+  const bar = document.getElementById('storiesBar');
+  bar.innerHTML = (data.stories||[]).map(s => `
+    <div class="story-item" title="${escapeHtml(s.text||'')}">
+      ${avatarHtml(s.display_name, s.avatar_url, 'avatar')}
+      <div class="s-name">${escapeHtml(s.display_name)}</div>
+    </div>
+  `).join('');
+}
+
 </script>
 </body>
 </html>
