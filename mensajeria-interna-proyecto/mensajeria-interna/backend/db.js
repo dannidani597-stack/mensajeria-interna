@@ -33,6 +33,7 @@ async function initDb() {
       photo_url TEXT,
       description TEXT,
       is_announcement_only INTEGER DEFAULT 0,
+      is_direct INTEGER DEFAULT 0,
       created_by INTEGER,
       created_at BIGINT NOT NULL
     );
@@ -115,6 +116,9 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at);
     CREATE INDEX IF NOT EXISTS idx_reactions_message ON message_reactions(message_id);
   `);
+
+  // Migracion segura para bases de datos que ya existian antes de esta columna.
+  await pool.query(`ALTER TABLE channels ADD COLUMN IF NOT EXISTS is_direct INTEGER DEFAULT 0`);
 
   let general = (await pool.query('SELECT id FROM channels WHERE name = $1', ['general'])).rows[0];
   if (!general) {

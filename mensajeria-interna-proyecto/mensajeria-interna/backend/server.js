@@ -428,7 +428,7 @@ app.get('/api/admin/stats', rateLimitCheck('admin'), adminAuth, async (req, res)
 // ---- Canales (grupos) ----
 app.get('/api/channels', authMiddleware, async (req, res) => {
   const rows = await q(`
-    SELECT c.id, c.name, c.photo_url, c.description, c.is_announcement_only, c.created_by, c.created_at,
+    SELECT c.id, c.name, c.photo_url, c.description, c.is_announcement_only, c.is_direct, c.created_by, c.created_at,
            cm.role,
            (SELECT 1 FROM channel_pinned WHERE channel_id = c.id AND user_id = $1) AS pinned,
            (SELECT 1 FROM channel_archived WHERE channel_id = c.id AND user_id = $1) AS archived,
@@ -436,13 +436,45 @@ app.get('/api/channels', authMiddleware, async (req, res) => {
            (SELECT COUNT(*) FROM messages m WHERE m.channel_id = c.id
               AND m.id > COALESCE((SELECT last_read_message_id FROM read_state WHERE channel_id = c.id AND user_id = $1), 0)
               AND m.user_id != $1
-              AND (m.scheduled_at IS NULL OR m.scheduled_at <= $2)) AS unread_count
+              AND (m.scheduled_at IS NULL OR m.scheduled_at <= $2)) AS unread_count,
+           (SELECT u2.username FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_username,
+           (SELECT u2.display_name FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_display_name,
+           (SELECT u2.avatar_url FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_avatar_url,
+           (SELECT u2.last_seen_at FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_last_seen_at
     FROM channels c
     JOIN channel_members cm ON cm.channel_id = c.id
     WHERE cm.user_id = $1
-    ORDER BY pinned DESC NULLS LAST, (c.name = 'general') DESC, c.name ASC
+    ORDER BY pinned DESC NULLS LAST, (c.name = 'general') DESC, c.is_direct ASC, c.name ASC
   `, [req.user.id, Date.now()]);
   res.json({ channels: rows });
+});
+
+// ---- Chat directo (1 a 1) ----
+// Crea (o reutiliza si ya existe) un chat directo entre yo y otro usuario.
+// El nombre interno del canal es "dm:<idMenor>:<idMayor>" — no se muestra
+// nunca al usuario, el cliente usa el nombre/foto de la otra persona.
+app.post('/api/dm/:username', authMiddleware, async (req, res) => {
+  const target = await qOne('SELECT id, username, display_name, avatar_url FROM users WHERE username = $1', [req.params.username]);
+  if (!target) return res.status(404).json({ error: 'Ese usuario no existe' });
+  if (target.id === req.user.id) return res.status(400).json({ error: 'No puedes iniciar un chat contigo mismo' });
+
+  const [a, b] = [req.user.id, target.id].sort((x, y) => x - y);
+  const dmName = `dm:${a}:${b}`;
+
+  let channel = await qOne('SELECT id FROM channels WHERE name = $1', [dmName]);
+  if (!channel) {
+    const createdAt = Date.now();
+    const info = await qOne('INSERT INTO channels (name, is_direct, created_by, created_at) VALUES ($1, 1, $2, $3) RETURNING id', [dmName, req.user.id, createdAt]);
+    channel = { id: info.id };
+    await pool.query("INSERT INTO channel_members (channel_id, user_id, role, joined_at) VALUES ($1, $2, 'member', $3), ($1, $4, 'member', $3)",
+      [channel.id, req.user.id, createdAt, target.id]);
+  }
+  res.json({
+    channel: {
+      id: channel.id, name: dmName, is_direct: 1,
+      dm_username: target.username, dm_display_name: target.display_name, dm_avatar_url: target.avatar_url,
+    },
+  });
 });
 
 app.post('/api/channels', authMiddleware, async (req, res) => {
@@ -462,6 +494,8 @@ app.post('/api/channels', authMiddleware, async (req, res) => {
 
 app.patch('/api/channels/:id', authMiddleware, async (req, res) => {
   const channelId = parseInt(req.params.id);
+  const channel = await qOne('SELECT is_direct FROM channels WHERE id = $1', [channelId]);
+  if (channel && channel.is_direct) return res.status(400).json({ error: 'Un chat directo no tiene descripcion ni modo anuncios' });
   if (!(await isChannelAdmin(channelId, req.user.id))) return res.status(403).json({ error: 'Solo un admin del grupo puede editarlo' });
   const { description, isAnnouncementOnly } = req.body || {};
   if (description !== undefined) await pool.query('UPDATE channels SET description = $1 WHERE id = $2', [(description || '').slice(0, 200), channelId]);
@@ -484,7 +518,9 @@ app.post('/api/channels/:id/photo', authMiddleware, (req, res) => {
 app.post('/api/channels/:id/invite', authMiddleware, async (req, res) => {
   const channelId = parseInt(req.params.id);
   const { username } = req.body || {};
-  if (!(await isMember(channelId, req.user.id))) return res.status(403).json({ error: 'No perteneces a ese grupo' });
+  const channel = await qOne('SELECT is_direct FROM channels WHERE id = $1', [channelId]);
+  if (channel && channel.is_direct) return res.status(400).json({ error: 'No puedes invitar a un chat directo' });
+  if (!(await isChannelAdmin(channelId, req.user.id))) return res.status(403).json({ error: 'Solo un administrador del grupo puede invitar' });
   const target = await qOne('SELECT id, display_name FROM users WHERE username = $1', [(username || '').trim()]);
   if (!target) return res.status(404).json({ error: 'Ese usuario no existe' });
   await pool.query("INSERT INTO channel_members (channel_id, user_id, role, joined_at) VALUES ($1, $2, 'member', $3) ON CONFLICT DO NOTHING", [channelId, target.id, Date.now()]);
@@ -504,6 +540,8 @@ app.get('/api/channels/:id/members', authMiddleware, async (req, res) => {
 
 app.patch('/api/channels/:id/members/:username/role', authMiddleware, async (req, res) => {
   const channelId = parseInt(req.params.id);
+  const channel = await qOne('SELECT is_direct FROM channels WHERE id = $1', [channelId]);
+  if (channel && channel.is_direct) return res.status(400).json({ error: 'Un chat directo no tiene roles' });
   if (!(await isChannelAdmin(channelId, req.user.id))) return res.status(403).json({ error: 'Solo un admin del grupo puede cambiar roles' });
   const { role } = req.body || {};
   if (!['member', 'admin'].includes(role)) return res.status(400).json({ error: 'Rol invalido' });
@@ -515,9 +553,10 @@ app.patch('/api/channels/:id/members/:username/role', authMiddleware, async (req
 
 app.post('/api/channels/:id/leave', authMiddleware, async (req, res) => {
   const channelId = parseInt(req.params.id);
-  const channel = await qOne('SELECT name FROM channels WHERE id = $1', [channelId]);
+  const channel = await qOne('SELECT name, is_direct FROM channels WHERE id = $1', [channelId]);
   if (!channel) return res.status(404).json({ error: 'Ese grupo ya no existe' });
   if (channel.name === 'general') return res.status(400).json({ error: 'No puedes salir del canal general' });
+  if (channel.is_direct) return res.status(400).json({ error: 'Un chat directo no se abandona — puedes archivarlo o silenciarlo' });
   if (!(await isMember(channelId, req.user.id))) return res.status(403).json({ error: 'No perteneces a ese grupo' });
   await pool.query('DELETE FROM channel_members WHERE channel_id = $1 AND user_id = $2', [channelId, req.user.id]);
   res.json({ ok: true });
