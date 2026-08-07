@@ -30,7 +30,8 @@
     -webkit-background-clip:text; background-clip:text; color:transparent;}
   .gate-card p{color:var(--muted); font-size:13px; margin:0 0 20px; line-height:1.5;}
   .gate-card input{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    border-radius:24px; padding:12px 16px; font-size:14px; outline:none; margin-bottom:10px;}
+    border-radius:24px; padding:12px 16px; font-size:14px; outline:none; margin-bottom:10px;
+    -webkit-appearance:none; appearance:none;}
   .gate-card input:focus{border-color:var(--accent);}
   .gate-card button.primary{width:100%; background:var(--grad); color:#fff; border:none;
     border-radius:24px; padding:12px; font-weight:700; font-size:14px; cursor:pointer;
@@ -65,8 +66,10 @@
   /* ---- Sidebar de grupos (estilo lista de chats) ---- */
   #groupsSidebar{width:230px; flex-shrink:0; border-right:1px solid var(--border); background:var(--panel);
     display:flex; flex-direction:column;}
-  #groupsSidebar .groups-label{font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted);
-    letter-spacing:.1em; text-transform:uppercase; padding:14px 16px 8px;}
+  #filterTabs{display:flex; gap:6px; padding:12px 12px 8px; overflow-x:auto; flex-shrink:0;}
+  .filter-tab{background:var(--panel-2); border:1px solid var(--border); color:var(--muted); font-size:11.5px;
+    font-weight:700; padding:6px 12px; border-radius:16px; cursor:pointer; white-space:nowrap; flex-shrink:0;}
+  .filter-tab.active{background:var(--accent-dark); border-color:var(--accent-dark); color:#fff;}
   #groupsList{flex:1; overflow-y:auto;}
   .group-item{display:flex; align-items:center; gap:11px; padding:10px 14px; cursor:pointer;
     border-bottom:1px solid var(--panel-2);}
@@ -74,9 +77,9 @@
   .group-item.active{background:var(--accent-light);}
   .group-item .avatar{width:40px; height:40px; border-radius:50%; flex-shrink:0; display:flex;
     align-items:center; justify-content:center; font-weight:700; font-size:14px; color:#fff;}
-  .group-item .g-info{overflow:hidden;}
+  .group-item .g-info{overflow:hidden; flex:1; min-width:0;}
+  .group-item .g-sub{font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .group-item .g-name{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .group-item .g-sub{font-size:11px; color:var(--muted);}
   #newGroupBtn{margin:10px 14px 6px; background:var(--grad); border:none; color:#fff;
     border-radius:20px; padding:10px; font-size:12.5px; cursor:pointer; font-weight:700;
     box-shadow:0 6px 16px rgba(18,169,125,.3);}
@@ -116,7 +119,8 @@
   #composer{display:flex; gap:10px; padding:10px 16px; border-top:1px solid var(--border);
     background:var(--panel); flex-shrink:0;}
   #composer input{flex:1; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    border-radius:24px; padding:11px 16px; font-size:14px; outline:none;}
+    border-radius:24px; padding:11px 16px; font-size:14px; outline:none;
+    -webkit-appearance:none; appearance:none; min-height:44px;}
   #composer input:focus{border-color:var(--accent);}
   #composer button{width:42px; height:42px; border-radius:50%; border:none; background:var(--grad);
     color:#fff; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;
@@ -150,7 +154,8 @@
   .modal-card h2{font-size:16px; margin:0 0 4px;}
   .modal-card p{color:var(--muted); font-size:12.5px; margin:0 0 16px;}
   .modal-card input{width:100%; background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    border-radius:14px; padding:11px 14px; font-size:14px; outline:none; margin-bottom:10px;}
+    border-radius:14px; padding:11px 14px; font-size:14px; outline:none; margin-bottom:10px;
+    -webkit-appearance:none; appearance:none;}
   .modal-card .modal-actions{display:flex; gap:8px; margin-top:6px;}
   .modal-card .modal-actions button{flex:1; border-radius:20px; padding:10px; font-size:13px; cursor:pointer; border:none; font-weight:700;}
   .modal-card .modal-actions .confirm{background:var(--grad); color:#fff;}
@@ -159,7 +164,7 @@
   ::-webkit-scrollbar{width:8px;} ::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
   @media (max-width:640px){
     #groupsSidebar{width:96px;}
-    #groupsSidebar .g-sub, #groupsSidebar .groups-label{display:none;}
+    #groupsSidebar .g-sub, #filterTabs{display:none;}
     .group-item{flex-direction:column; padding:10px 6px;}
     .group-item .g-name{font-size:10.5px; max-width:70px; text-align:center;}
     #body{flex-direction:row;}
@@ -168,7 +173,8 @@
   .unread-badge{background:var(--danger); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px;
     border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 4px; margin-left:auto;}
   .group-item{position:relative;}
-  .group-item .g-status{display:flex; align-items:center; gap:6px;}
+  .group-item .g-status{display:flex; flex-direction:column; align-items:flex-end; gap:4px; flex-shrink:0;}
+  .group-item .g-time{font-size:10.5px; color:var(--muted);}
 
   .reply-preview{background:var(--accent-light); border-left:3px solid var(--accent-dark); border-radius:8px;
     padding:6px 10px; font-size:11.5px; color:var(--accent-dark); margin-bottom:4px; cursor:pointer;}
@@ -274,7 +280,12 @@
     <div id="pinnedBar" onclick="openPinnedModal()"><span>📌</span><span id="pinnedText"></span></div>
     <div id="body">
       <div id="groupsSidebar">
-        <div class="groups-label">Grupos</div>
+        <div id="filterTabs">
+          <button class="filter-tab active" data-filter="all" onclick="setChannelFilter('all')">Todos</button>
+          <button class="filter-tab" data-filter="unread" onclick="setChannelFilter('unread')">No leídos</button>
+          <button class="filter-tab" data-filter="groups" onclick="setChannelFilter('groups')">Grupos</button>
+          <button class="filter-tab" data-filter="direct" onclick="setChannelFilter('direct')">Directos</button>
+        </div>
         <div id="groupsList"></div>
         <button id="newGroupBtn" onclick="openNewGroupModal()">+ Nuevo grupo</button>
         <button id="newDmBtn" onclick="openDmModal()">👤 Chat directo</button>
@@ -296,6 +307,7 @@
           <button type="button" id="micBtn" onclick="toggleVoiceRecording()" title="Nota de voz">🎤</button>
           <button type="button" onclick="shareLocation()" title="Compartir ubicación">📍</button>
           <button type="button" onclick="openPollModal()" title="Encuesta">📊</button>
+          <button type="button" onclick="openShareContactModal()" title="Compartir contacto">📇</button>
           <input id="msgInput" placeholder="Escribe un mensaje…" maxlength="500">
           <button onclick="sendMessage()" aria-label="Enviar">
             <svg viewBox="0 0 24 24" fill="none"><path d="M3 11L21 3L13 21L11 13L3 11Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
@@ -369,6 +381,18 @@
     </div>
   </div>
 
+  <div id="shareContactModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>Compartir contacto</h2>
+      <p>Elige a quién compartir en este chat.</p>
+      <input id="shareContactSearchInput" placeholder="Buscar por nombre o usuario…" oninput="doShareContactSearch()">
+      <div id="shareContactResults" style="max-height:280px; overflow-y:auto; margin-top:6px;"></div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeModal('shareContactModal')" style="flex:1;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="membersModal" class="modal-backdrop hidden">
     <div class="modal-card">
       <h2>Miembros del grupo</h2>
@@ -435,6 +459,7 @@ let pendingFile = null;
 let channels = [];
 let currentChannelId = null;
 let messages = [];
+let readReceipts = {}; // { userId: lastReadMessageId } para el canal activo
 let pendingReplyId = null;
 let mediaRecorder = null, recordedChunks = [], recordingStart = 0;
 let peerConnection = null, localStream = null, currentCallPeerId = null;
@@ -481,7 +506,7 @@ async function doLogin(){
     const res = await fetch(API + '/api/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password}) });
     const data = await res.json();
     if (!res.ok) return gateError(data.error || 'No se pudo iniciar sesión');
-    onAuthed(data.token, data.user.displayName, data.user.avatarUrl);
+    onAuthed(data.token, data.user.displayName, data.user.avatarUrl, data.user.id);
   }catch(e){ gateError('No se pudo conectar al servidor'); }
 }
 
@@ -494,12 +519,12 @@ async function doRegister(){
     const res = await fetch(API + '/api/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,displayName}) });
     const data = await res.json();
     if (!res.ok) return gateError(data.error || 'No se pudo crear la cuenta');
-    onAuthed(data.token, data.user.displayName, data.user.avatarUrl);
+    onAuthed(data.token, data.user.displayName, data.user.avatarUrl, data.user.id);
   }catch(e){ gateError('No se pudo conectar al servidor'); }
 }
 
-function onAuthed(t, name, avatarUrl){
-  token = t; myDisplayName = name; myAvatarUrl = avatarUrl || null;
+function onAuthed(t, name, avatarUrl, userId){
+  token = t; myDisplayName = name; myAvatarUrl = avatarUrl || null; myUserId = userId || null;
   document.getElementById('gate').style.display = 'none';
   document.getElementById('main').style.display = 'flex';
   connectSocket();
@@ -525,7 +550,7 @@ function connectSocket(){
       loadHistory(currentChannelId);
     }
     if (data.type === 'message' && data.message.channel_id === currentChannelId) appendMessage(data.message);
-    if (data.type === 'message' && data.message.channel_id !== currentChannelId) loadChannels();
+    if (data.type === 'message' && data.message.channel_id !== currentChannelId) { loadChannels(); if (data.message.display_name !== myDisplayName) playNotifySound(); }
     if (data.type === 'message_edited' && data.channelId === currentChannelId) applyEdit(data.id, data.text, data.edited_at);
     if (data.type === 'message_deleted' && data.channelId === currentChannelId) applyDelete(data.id);
     if (data.type === 'presence' && data.channelId === currentChannelId) renderOnline(data.online);
@@ -537,7 +562,15 @@ function connectSocket(){
     }
     if (data.type === 'reactions_updated' && data.channelId === currentChannelId) applyReactions(data.id, data.reactions);
     if (data.type === 'message_pinned' && data.channelId === currentChannelId) { loadHistory(currentChannelId); loadPinned(); }
+    if (data.type === 'channel_deleted') {
+      if (data.channelId === currentChannelId) { currentChannelId = null; }
+      loadChannels();
+    }
     if (data.type === 'poll_voted') { /* se refresca al abrir la encuesta */ }
+    if (data.type === 'read_receipt' && data.channelId === currentChannelId && data.userId !== myUserId) {
+      readReceipts[data.userId] = data.lastReadMessageId;
+      renderReadTicks();
+    }
     if ((data.type === 'call_offer' || data.type === 'call_answer' || data.type === 'call_ice' || data.type === 'call_end')) onCallSignal(data);
   };
 }
@@ -571,31 +604,55 @@ async function loadChannels(){
   }
 }
 
+let channelFilter = 'all';
+function setChannelFilter(f){
+  channelFilter = f;
+  document.querySelectorAll('.filter-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === f));
+  renderGroupsList();
+}
 function channelDisplayName(c){
   return c.is_direct ? (c.dm_display_name || 'Usuario') : c.name;
 }
 function channelAvatarUrl(c){
   return c.is_direct ? c.dm_avatar_url : c.photo_url;
 }
+function lastMessagePreview(c){
+  if (!c.last_message_at) return c.is_direct ? 'Chat directo' : (c.name === 'general' ? 'Todo el equipo' : 'Grupo privado');
+  let text = c.last_message_is_attachment && !c.last_message_text ? '📎 Archivo adjunto' : (c.last_message_text || '📎 Archivo adjunto');
+  text = text.length > 42 ? text.slice(0,42) + '…' : text;
+  const prefix = (!c.is_direct && c.last_message_sender) ? `${c.last_message_sender.split(' ')[0]}: ` : '';
+  return escapeHtml(prefix + text);
+}
 function renderGroupsList(){
   const list = document.getElementById('groupsList');
-  list.innerHTML = channels.filter(c => !c.archived).map(c => {
+  let visible = channels.filter(c => !c.archived);
+  if (channelFilter === 'unread') visible = visible.filter(c => c.unread_count > 0);
+  else if (channelFilter === 'groups') visible = visible.filter(c => !c.is_direct);
+  else if (channelFilter === 'direct') visible = visible.filter(c => c.is_direct);
+
+  list.innerHTML = visible.map(c => {
     const name = channelDisplayName(c);
     const color = colorFor(name);
     const initials = name.slice(0,2).toUpperCase();
     const avatarUrl = channelAvatarUrl(c);
     const badge = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count > 99 ? '99+' : c.unread_count}</span>` : '';
-    const sub = c.is_direct ? 'Chat directo' : (c.name === 'general' ? 'Todo el equipo' : 'Grupo privado');
+    const timeLabel = c.last_message_at ? timeFmt(Number(c.last_message_at)) : '';
     return `
     <div class="group-item ${c.id === currentChannelId ? 'active' : ''}" onclick="selectChannel(${c.id})" oncontextmenu="openChannelMenu(event, ${c.id}); return false;">
       <div class="avatar" style="background:${color}">${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeHtml(initials)}</div>
       <div class="g-info">
         <div class="g-name">${c.pinned ? '📌 ' : ''}${c.muted ? '🔇 ' : ''}${escapeHtml(name)}</div>
-        <div class="g-sub">${sub}</div>
+        <div class="g-sub">${lastMessagePreview(c)}</div>
       </div>
-      <div class="g-status">${badge}</div>
+      <div class="g-status">
+        ${timeLabel ? `<span class="g-time">${timeLabel}</span>` : ''}
+        ${badge}
+      </div>
     </div>`;
   }).join('');
+  if (visible.length === 0) {
+    list.innerHTML = '<p style="padding:20px;font-size:12px;color:var(--muted);text-align:center;">Nada por aquí.</p>';
+  }
 }
 
 function openChannelMenu(ev, channelId){
@@ -604,10 +661,13 @@ function openChannelMenu(ev, channelId){
   const ch = channels.find(c => c.id === channelId);
   if (!ch) return;
   const isGeneral = ch.name === 'general';
+  const isAdmin = ch.role === 'owner' || ch.role === 'admin';
   menu.innerHTML = `
     <button onclick="toggleChannelFlag(${channelId},'pin',${!ch.pinned})">${ch.pinned ? 'Desfijar' : 'Fijar'} grupo</button>
     <button onclick="toggleChannelFlag(${channelId},'mute',${!ch.muted})">${ch.muted ? 'Reactivar' : 'Silenciar'} notificaciones</button>
-    ${!isGeneral ? `<button onclick="toggleChannelFlag(${channelId},'archive',true)">Archivar</button>` : ''}
+    ${!isGeneral && !ch.is_direct ? `<button onclick="toggleChannelFlag(${channelId},'archive',true)">Archivar</button>` : ''}
+    ${ch.is_direct ? `<button onclick="deleteDirectChat(${channelId})" style="color:var(--danger);">Eliminar chat</button>` : ''}
+    ${!isGeneral && !ch.is_direct && isAdmin ? `<button onclick="deleteChannel(${channelId})" style="color:var(--danger);">Borrar grupo</button>` : ''}
   `;
   menu.style.left = ev.pageX + 'px';
   menu.style.top = ev.pageY + 'px';
@@ -615,6 +675,33 @@ function openChannelMenu(ev, channelId){
   document.addEventListener('click', closeChannelMenuOnce, { once: true });
 }
 function closeChannelMenuOnce(){ document.getElementById('channelMenu').classList.remove('show'); }
+async function deleteChannel(channelId){
+  const ch = channels.find(c => c.id === channelId);
+  const name = ch ? channelDisplayName(ch) : '';
+  if (!confirm(`¿Borrar el grupo "${name}" para siempre? Se pierden todos sus mensajes. No se puede deshacer.`)) return;
+  try{
+    const res = await fetch(API + `/api/channels/${channelId}`, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'No se pudo borrar el grupo'); return; }
+    if (channelId === currentChannelId) currentChannelId = null;
+    loadChannels();
+  }catch(e){ alert('No se pudo conectar al servidor'); }
+}
+async function deleteDirectChat(channelId){
+  const ch = channels.find(c => c.id === channelId);
+  const name = ch ? channelDisplayName(ch) : '';
+  if (!confirm(`¿Eliminar el chat con "${name}"? Solo desaparece de tu lista — si te vuelve a escribir, reaparece.`)) return;
+  try{
+    const res = await fetch(API + `/api/channels/${channelId}/archive`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (!res.ok) { alert('No se pudo eliminar el chat'); return; }
+    if (channelId === currentChannelId) currentChannelId = null;
+    loadChannels();
+  }catch(e){ alert('No se pudo conectar al servidor'); }
+}
 async function toggleChannelFlag(channelId, action, enable){
   await fetch(API + `/api/channels/${channelId}/${action}`, {
     method: enable ? 'POST' : 'DELETE',
@@ -645,6 +732,7 @@ function selectChannel(channelId){
   }
   loadHistory(channelId);
   loadPinned();
+  loadReadState(channelId);
   fetch(API + `/api/channels/${channelId}/read`, { method:'POST', headers:{'Authorization':'Bearer '+token} }).then(loadChannels);
   document.getElementById('msgInput').focus();
 }
@@ -676,9 +764,32 @@ function renderLog(msgs){
   }
   log.innerHTML = html;
   log.scrollTop = log.scrollHeight;
+  renderReadTicks();
+}
+// Sonido corto de notificacion (generado con Web Audio, sin archivo externo)
+// para cuando llega un mensaje de alguien mas mientras la pestaña esta abierta.
+let audioCtx = null;
+function playNotifySound(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    [880, 1175].forEach((freq, i) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.09);
+      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.09 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.09 + 0.18);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(now + i * 0.09);
+      osc.stop(now + i * 0.09 + 0.2);
+    });
+  }catch(e){}
 }
 function appendMessage(m){
   messages.push(m);
+  if (m.display_name !== myDisplayName) playNotifySound();
   const log = document.getElementById('log');
   const wasNearBottom = (log.scrollHeight - log.scrollTop - log.clientHeight) < 120;
   const label = dateLabel(m.created_at);
@@ -688,6 +799,7 @@ function appendMessage(m){
   html += renderBubble(m);
   log.insertAdjacentHTML('beforeend', html);
   if (wasNearBottom) log.scrollTop = log.scrollHeight;
+  renderReadTicks();
 }
 function highlightMentions(text){
   return escapeHtml(text).replace(/@([a-zA-Z0-9_]+)/g, '<span class="mention">@$1</span>');
@@ -713,6 +825,14 @@ function renderBubble(m){
     <a class="file-card" href="https://www.google.com/maps?q=${m.location_lat},${m.location_lng}" target="_blank">
       <div class="file-icon">📍</div><div class="file-info"><div class="file-name">Ubicación compartida</div></div>
     </a>` : '';
+  const contactCard = m.shared_contact ? `
+    <div class="file-card" style="cursor:pointer;" onclick="startDm('${m.shared_contact.username.replace(/'/g,"\\'")}')">
+      ${avatarHtml(m.shared_contact.display_name, m.shared_contact.avatar_url, 'avatar')}
+      <div class="file-info">
+        <div class="file-name">👤 ${escapeHtml(m.shared_contact.display_name)}</div>
+        <div class="file-size">Toca para platicar</div>
+      </div>
+    </div>` : '';
   const replyHtml = m.reply_preview ? `
     <div class="reply-preview" onclick="document.getElementById('msg-${m.reply_preview.id}')?.scrollIntoView({behavior:'smooth',block:'center'})">
       <b>${escapeHtml(m.reply_preview.display_name)}</b>${escapeHtml((m.reply_preview.text||'').slice(0,80))}
@@ -734,8 +854,8 @@ function renderBubble(m){
   return `<div class="msg ${own?'own':''}" id="msg-${m.id}">
     ${avatarHtml(m.display_name, m.avatar_url, 'callsign')}
     <div class="bubble-wrap">
-      <div class="meta"><span>${escapeHtml(m.display_name)}</span><span>${timeFmt(m.created_at)}</span>${editedTag}${actions}${hoverActions}</div>
-      <div id="bubble-wrap-inner-${m.id}">${replyHtml}${img}${fileCard}${voiceCard}${locationCard}${txt}${reactionsRow}</div>
+      <div class="meta"><span>${escapeHtml(m.display_name)}</span><span>${timeFmt(m.created_at)}</span>${own ? `<span id="ticks-${m.id}" style="color:var(--muted);">✓</span>` : ''}${editedTag}${actions}${hoverActions}</div>
+      <div id="bubble-wrap-inner-${m.id}">${replyHtml}${img}${fileCard}${voiceCard}${locationCard}${contactCard}${txt}${reactionsRow}</div>
     </div>
   </div>`;
 }
@@ -957,6 +1077,43 @@ async function startDm(username){
   }catch(e){ alert('No se pudo conectar al servidor'); }
 }
 
+// ---- Compartir tarjeta de contacto en el chat actual ----
+function openShareContactModal(){
+  if (!currentChannelId) return;
+  document.getElementById('shareContactModal').classList.remove('hidden');
+  document.getElementById('shareContactSearchInput').value = '';
+  document.getElementById('shareContactResults').innerHTML = '';
+  document.getElementById('shareContactSearchInput').focus();
+  doShareContactSearch();
+}
+let shareContactTimer = null;
+function doShareContactSearch(){
+  clearTimeout(shareContactTimer);
+  shareContactTimer = setTimeout(async () => {
+    const q = document.getElementById('shareContactSearchInput').value.trim();
+    const results = document.getElementById('shareContactResults');
+    try{
+      const res = await fetch(API + '/api/users?q=' + encodeURIComponent(q), { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      const users = (data.users || []).filter(u => u.display_name !== myDisplayName);
+      results.innerHTML = users.map(u => `
+        <div class="group-item" style="cursor:pointer;" onclick="shareContact('${u.username.replace(/'/g,"\\'")}')">
+          ${avatarHtml(u.display_name, u.avatar_url, 'avatar')}
+          <div class="g-info">
+            <div class="g-name">${escapeHtml(u.display_name)}</div>
+            <div class="g-sub">usuario: ${escapeHtml(u.username)}</div>
+          </div>
+        </div>
+      `).join('') || '<p style="font-size:12px;color:var(--muted);">Sin resultados.</p>';
+    }catch(e){ results.innerHTML = '<div class="gate-msg err">No se pudo conectar al servidor</div>'; }
+  }, 250);
+}
+function shareContact(username){
+  if (!ws || ws.readyState !== WebSocket.OPEN) { alert('Sin conexión por ahora, intenta de nuevo en unos segundos.'); return; }
+  ws.send(JSON.stringify({ type:'message', text:'', sharedContactUsername: username }));
+  closeModal('shareContactModal');
+}
+
 // ---- Grupos: crear / invitar ----
 function openNewGroupModal(){
   document.getElementById('newGroupModal').classList.remove('hidden');
@@ -1169,6 +1326,32 @@ async function togglePin(id){
   const pinned = m && m.pinned;
   await fetch(API + `/api/messages/${id}/pin`, { method: pinned ? 'DELETE' : 'POST', headers: { 'Authorization':'Bearer '+token } });
   loadPinned();
+}
+async function loadReadState(channelId){
+  readReceipts = {};
+  try{
+    const res = await fetch(API + `/api/channels/${channelId}/read-state`, { headers: { 'Authorization': 'Bearer ' + token } });
+    const data = await res.json();
+    if (res.ok) {
+      for (const r of (data.readState || [])) {
+        if (r.user_id !== myUserId) readReceipts[r.user_id] = r.last_read_message_id;
+      }
+      renderReadTicks();
+    }
+  }catch(e){}
+}
+// Pinta ✓ (enviado) o ✓✓ (lo leyo alguien mas) en tus propios ultimos mensajes.
+function renderReadTicks(){
+  const readerIds = Object.keys(readReceipts).map(Number);
+  const myMsgs = messages.filter(m => m.display_name === myDisplayName);
+  myMsgs.forEach(m => {
+    const el = document.getElementById('ticks-' + m.id);
+    if (!el) return;
+    const readByCount = readerIds.filter(uid => readReceipts[uid] >= m.id).length;
+    el.textContent = readByCount > 0 ? '✓✓' : '✓';
+    el.style.color = readByCount > 0 ? 'var(--accent)' : 'var(--muted)';
+    el.title = readByCount > 0 ? `Visto por ${readByCount}` : 'Enviado';
+  });
 }
 async function loadPinned(){
   if (!currentChannelId) return;
