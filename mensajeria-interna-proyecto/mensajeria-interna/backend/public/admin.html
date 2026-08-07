@@ -39,6 +39,7 @@
   .user-row .name{flex:1;}
   .user-row .name b{display:block; font-size:14px;}
   .user-row .name span{display:block; font-size:12px; color:var(--muted);}
+  .user-row button.danger{padding:6px 12px; font-size:12px; flex-shrink:0;}
   .msg{font-size:13px; padding:10px; border-radius:8px; margin-bottom:10px;}
   .msg.ok{background:rgba(52,214,184,.1); color:var(--teal); border:1px solid rgba(52,214,184,.3);}
   .msg.err{background:rgba(229,86,74,.1); color:var(--danger); border:1px solid rgba(229,86,74,.3);}
@@ -65,6 +66,11 @@
     </div>
 
     <div class="card">
+      <div class="sub" style="margin-bottom:12px;">Solicitudes de eliminación pendientes</div>
+      <div id="requestList">Cargando...</div>
+    </div>
+
+    <div class="card">
       <div class="sub" style="margin-bottom:12px;">Usuarios registrados</div>
       <div id="userList">Cargando...</div>
       <button class="secondary" onclick="loadUsers()" style="margin-top:10px;">Actualizar lista</button>
@@ -87,6 +93,39 @@ async function enter() {
   document.getElementById('gate').style.display = 'none';
   document.getElementById('panel').style.display = 'block';
   loadUsers();
+  loadRequests();
+}
+
+async function loadRequests() {
+  const res = await fetch('/api/admin/deletion-requests', { headers: { 'x-admin-key': adminKey } });
+  const data = await res.json();
+  const list = document.getElementById('requestList');
+  if (!data.requests || data.requests.length === 0) {
+    list.innerHTML = '<div class="sub">No hay solicitudes pendientes.</div>';
+    return;
+  }
+  list.innerHTML = data.requests.map(r => `
+    <div class="user-row">
+      <div class="name">
+        <b>${escapeHtml(r.display_name)}</b>
+        <span>usuario: ${escapeHtml(r.username)} · pidió eliminar su cuenta el ${new Date(r.requested_at).toLocaleDateString('es-MX')}</span>
+      </div>
+      <button onclick="approveRequest(${r.id})">Aprobar</button>
+      <button class="secondary" onclick="rejectRequest(${r.id})">Rechazar</button>
+    </div>
+  `).join('');
+}
+
+async function approveRequest(id) {
+  if (!confirm('¿Aprobar y eliminar esta cuenta por completo? No se puede deshacer.')) return;
+  await fetch(`/api/admin/deletion-requests/${id}/approve`, { method: 'POST', headers: { 'x-admin-key': adminKey } });
+  loadRequests();
+  loadUsers();
+}
+
+async function rejectRequest(id) {
+  await fetch(`/api/admin/deletion-requests/${id}/reject`, { method: 'POST', headers: { 'x-admin-key': adminKey } });
+  loadRequests();
 }
 
 async function loadUsers() {
@@ -103,8 +142,29 @@ async function loadUsers() {
         <b>${escapeHtml(u.display_name)}</b>
         <span>usuario: ${escapeHtml(u.username)}</span>
       </div>
+      <button class="danger" onclick="deleteUser('${escapeHtml(u.username).replace(/'/g,"\\'")}')">Eliminar</button>
     </div>
   `).join('');
+}
+
+async function deleteUser(username) {
+  if (!confirm(`¿Eliminar a "${username}" por completo? Esto no se puede deshacer.`)) return;
+  const msgEl = document.getElementById('opMsg');
+  try {
+    const res = await fetch('/api/admin/users/' + encodeURIComponent(username), {
+      method: 'DELETE',
+      headers: { 'x-admin-key': adminKey }
+    });
+    const data = await res.json();
+    if (res.ok) {
+      msgEl.innerHTML = `<div class="msg ok">Usuario "${escapeHtml(username)}" eliminado.</div>`;
+      loadUsers();
+    } else {
+      msgEl.innerHTML = `<div class="msg err">${escapeHtml(data.error || 'No se pudo eliminar')}</div>`;
+    }
+  } catch (e) {
+    msgEl.innerHTML = '<div class="msg err">No se pudo conectar al servidor</div>';
+  }
 }
 
 async function resetPassword() {
