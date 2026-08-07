@@ -77,9 +77,11 @@
   .group-item .g-info{overflow:hidden;}
   .group-item .g-name{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .group-item .g-sub{font-size:11px; color:var(--muted);}
-  #newGroupBtn{margin:10px 14px; background:var(--grad); border:none; color:#fff;
+  #newGroupBtn{margin:10px 14px 6px; background:var(--grad); border:none; color:#fff;
     border-radius:20px; padding:10px; font-size:12.5px; cursor:pointer; font-weight:700;
     box-shadow:0 6px 16px rgba(18,169,125,.3);}
+  #newDmBtn{margin:0 14px 10px; background:var(--panel); border:1px solid var(--border); color:var(--accent-dark);
+    border-radius:20px; padding:9px; font-size:12.5px; cursor:pointer; font-weight:700;}
 
   .callsign{width:26px; height:26px; border-radius:50%; background:var(--panel-2); border:1px solid var(--border);
     display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace;
@@ -275,6 +277,7 @@
         <div class="groups-label">Grupos</div>
         <div id="groupsList"></div>
         <button id="newGroupBtn" onclick="openNewGroupModal()">+ Nuevo grupo</button>
+        <button id="newDmBtn" onclick="openDmModal()">👤 Chat directo</button>
       </div>
       <div id="chatCol">
         <div id="noChannel" class="hidden">Selecciona o crea un grupo para empezar</div>
@@ -350,6 +353,18 @@
       <div class="modal-actions">
         <button class="cancel" onclick="closeModal('newGroupModal')">Cancelar</button>
         <button class="confirm" onclick="createGroup()">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dmModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h2>Chat directo</h2>
+      <p>Busca a alguien del equipo para platicar 1 a 1.</p>
+      <input id="dmSearchInput" placeholder="Buscar por nombre o usuario…" oninput="doDmSearch()">
+      <div id="dmSearchResults" style="max-height:280px; overflow-y:auto; margin-top:6px;"></div>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeModal('dmModal')" style="flex:1;">Cerrar</button>
       </div>
     </div>
   </div>
@@ -556,18 +571,27 @@ async function loadChannels(){
   }
 }
 
+function channelDisplayName(c){
+  return c.is_direct ? (c.dm_display_name || 'Usuario') : c.name;
+}
+function channelAvatarUrl(c){
+  return c.is_direct ? c.dm_avatar_url : c.photo_url;
+}
 function renderGroupsList(){
   const list = document.getElementById('groupsList');
   list.innerHTML = channels.filter(c => !c.archived).map(c => {
-    const color = colorFor(c.name);
-    const initials = c.name.slice(0,2).toUpperCase();
+    const name = channelDisplayName(c);
+    const color = colorFor(name);
+    const initials = name.slice(0,2).toUpperCase();
+    const avatarUrl = channelAvatarUrl(c);
     const badge = c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count > 99 ? '99+' : c.unread_count}</span>` : '';
+    const sub = c.is_direct ? 'Chat directo' : (c.name === 'general' ? 'Todo el equipo' : 'Grupo privado');
     return `
     <div class="group-item ${c.id === currentChannelId ? 'active' : ''}" onclick="selectChannel(${c.id})" oncontextmenu="openChannelMenu(event, ${c.id}); return false;">
-      <div class="avatar" style="background:${color}">${c.photo_url ? `<img src="${escapeHtml(c.photo_url)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeHtml(initials)}</div>
+      <div class="avatar" style="background:${color}">${avatarUrl ? `<img src="${escapeHtml(avatarUrl)}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : escapeHtml(initials)}</div>
       <div class="g-info">
-        <div class="g-name">${c.pinned ? '📌 ' : ''}${c.muted ? '🔇 ' : ''}${escapeHtml(c.name)}</div>
-        <div class="g-sub">${c.name === 'general' ? 'Todo el equipo' : 'Grupo privado'}</div>
+        <div class="g-name">${c.pinned ? '📌 ' : ''}${c.muted ? '🔇 ' : ''}${escapeHtml(name)}</div>
+        <div class="g-sub">${sub}</div>
       </div>
       <div class="g-status">${badge}</div>
     </div>`;
@@ -604,10 +628,13 @@ function selectChannel(channelId){
   document.getElementById('noChannel').classList.add('hidden');
   renderGroupsList();
   const ch = channels.find(c => c.id === channelId);
-  document.getElementById('currentChannelName').textContent = ch ? ch.name : '';
-  document.getElementById('brandMark').textContent = ch ? ch.name.slice(0,2).toUpperCase() : 'GS';
-  document.getElementById('inviteBtn').classList.toggle('hidden', ch && ch.name === 'general');
-  document.getElementById('leaveBtn').classList.toggle('hidden', ch && ch.name === 'general');
+  const name = ch ? channelDisplayName(ch) : '';
+  document.getElementById('currentChannelName').textContent = name;
+  document.getElementById('brandMark').textContent = name ? name.slice(0,2).toUpperCase() : 'GS';
+  const isGroupChat = ch && !ch.is_direct && ch.name !== 'general';
+  document.getElementById('inviteBtn').classList.toggle('hidden', !isGroupChat);
+  document.getElementById('leaveBtn').classList.toggle('hidden', !isGroupChat);
+  document.getElementById('membersBtn').classList.toggle('hidden', !!(ch && ch.is_direct));
   document.getElementById('log').innerHTML = '';
   document.getElementById('onlineCount').textContent = '0';
   document.getElementById('typingIndicator').textContent = '';
@@ -886,6 +913,49 @@ function cancelReply(){
 document.getElementById('msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMessage(); });
 document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 document.getElementById('regPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doRegister(); });
+
+// ---- Chat directo: buscar usuario y empezar ----
+function openDmModal(){
+  document.getElementById('dmModal').classList.remove('hidden');
+  document.getElementById('dmSearchInput').value = '';
+  document.getElementById('dmSearchResults').innerHTML = '';
+  document.getElementById('dmSearchInput').focus();
+  doDmSearch();
+}
+let dmSearchTimer = null;
+function doDmSearch(){
+  clearTimeout(dmSearchTimer);
+  dmSearchTimer = setTimeout(async () => {
+    const q = document.getElementById('dmSearchInput').value.trim();
+    const results = document.getElementById('dmSearchResults');
+    try{
+      const res = await fetch(API + '/api/users?q=' + encodeURIComponent(q), { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      const users = (data.users || []).filter(u => u.display_name !== myDisplayName);
+      results.innerHTML = users.map(u => `
+        <div class="group-item" style="cursor:pointer;" onclick="startDm('${u.username.replace(/'/g,"\\'")}')">
+          ${avatarHtml(u.display_name, u.avatar_url, 'avatar')}
+          <div class="g-info">
+            <div class="g-name">${escapeHtml(u.display_name)}</div>
+            <div class="g-sub">usuario: ${escapeHtml(u.username)}</div>
+          </div>
+        </div>
+      `).join('') || '<p style="font-size:12px;color:var(--muted);">Sin resultados.</p>';
+    }catch(e){ results.innerHTML = '<div class="gate-msg err">No se pudo conectar al servidor</div>'; }
+  }, 250);
+}
+async function startDm(username){
+  try{
+    const res = await fetch(API + '/api/dm/' + encodeURIComponent(username), {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token },
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'No se pudo iniciar el chat'); return; }
+    closeModal('dmModal');
+    await loadChannels();
+    selectChannel(data.channel.id);
+  }catch(e){ alert('No se pudo conectar al servidor'); }
+}
 
 // ---- Grupos: crear / invitar ----
 function openNewGroupModal(){
