@@ -440,11 +440,15 @@ app.get('/api/channels', authMiddleware, async (req, res) => {
            (SELECT u2.username FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_username,
            (SELECT u2.display_name FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_display_name,
            (SELECT u2.avatar_url FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_avatar_url,
-           (SELECT u2.last_seen_at FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_last_seen_at
+           (SELECT u2.last_seen_at FROM channel_members cm2 JOIN users u2 ON u2.id = cm2.user_id WHERE cm2.channel_id = c.id AND cm2.user_id != $1 LIMIT 1) AS dm_last_seen_at,
+           (SELECT m3.text FROM messages m3 WHERE m3.channel_id = c.id AND (m3.scheduled_at IS NULL OR m3.scheduled_at <= $2) ORDER BY m3.created_at DESC LIMIT 1) AS last_message_text,
+           (SELECT m3.created_at FROM messages m3 WHERE m3.channel_id = c.id AND (m3.scheduled_at IS NULL OR m3.scheduled_at <= $2) ORDER BY m3.created_at DESC LIMIT 1) AS last_message_at,
+           (SELECT u3.display_name FROM messages m3 JOIN users u3 ON u3.id = m3.user_id WHERE m3.channel_id = c.id AND (m3.scheduled_at IS NULL OR m3.scheduled_at <= $2) ORDER BY m3.created_at DESC LIMIT 1) AS last_message_sender,
+           (SELECT (m3.image_url IS NOT NULL OR m3.file_url IS NOT NULL OR m3.voice_url IS NOT NULL OR m3.location_lat IS NOT NULL OR m3.shared_contact_username IS NOT NULL) FROM messages m3 WHERE m3.channel_id = c.id AND (m3.scheduled_at IS NULL OR m3.scheduled_at <= $2) ORDER BY m3.created_at DESC LIMIT 1) AS last_message_is_attachment
     FROM channels c
     JOIN channel_members cm ON cm.channel_id = c.id
     WHERE cm.user_id = $1
-    ORDER BY pinned DESC NULLS LAST, (c.name = 'general') DESC, c.is_direct ASC, c.name ASC
+    ORDER BY pinned DESC NULLS LAST, (c.name = 'general') DESC, last_message_at DESC NULLS LAST, c.name ASC
   `, [req.user.id, Date.now()]);
   res.json({ channels: rows });
 });
@@ -562,6 +566,56 @@ app.post('/api/channels/:id/leave', authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- Borrar un grupo por completo (solo el administrador, no se puede deshacer) ----
+app.delete('/api/channels/:id', authMiddleware, async (req, res) => {
+  const channelId = parseInt(req.params.id);
+  const channel = await qOne('SELECT name, is_direct FROM channels WHERE id = $1', [channelId]);
+  if (!channel) return res.status(404).json({ error: 'Ese grupo ya no existe' });
+  if (channel.name === 'general') return res.status(400).json({ error: 'No puedes borrar el canal general' });
+  if (channel.is_direct) return res.status(400).json({ error: 'Un chat directo no se borra asi — puedes archivarlo' });
+  if (!(await isChannelAdmin(channelId, req.user.id))) return res.status(403).json({ error: 'Solo un administrador del grupo puede borrarlo' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const msgFiles = await client.query('SELECT image_url, file_url, voice_url FROM messages WHERE channel_id = $1', [channelId]);
+    const msgIds = (await client.query('SELECT id FROM messages WHERE channel_id = $1', [channelId])).rows.map(r => r.id);
+    if (msgIds.length > 0) {
+      await client.query('DELETE FROM message_reactions WHERE message_id = ANY($1)', [msgIds]);
+      await client.query('DELETE FROM message_deleted_for WHERE message_id = ANY($1)', [msgIds]);
+      await client.query('DELETE FROM message_edit_history WHERE message_id = ANY($1)', [msgIds]);
+      await client.query('DELETE FROM message_mentions WHERE message_id = ANY($1)', [msgIds]);
+    }
+    await client.query('DELETE FROM messages WHERE channel_id = $1', [channelId]);
+    await client.query('DELETE FROM read_state WHERE channel_id = $1', [channelId]);
+    await client.query('DELETE FROM channel_pinned WHERE channel_id = $1', [channelId]);
+    await client.query('DELETE FROM channel_archived WHERE channel_id = $1', [channelId]);
+    await client.query('DELETE FROM channel_muted WHERE channel_id = $1', [channelId]);
+    const pollIds = (await client.query('SELECT id FROM polls WHERE channel_id = $1', [channelId])).rows.map(r => r.id);
+    if (pollIds.length > 0) {
+      await client.query('DELETE FROM poll_votes WHERE poll_id = ANY($1)', [pollIds]);
+      await client.query('DELETE FROM poll_options WHERE poll_id = ANY($1)', [pollIds]);
+      await client.query('DELETE FROM polls WHERE id = ANY($1)', [pollIds]);
+    }
+    await client.query('DELETE FROM channel_members WHERE channel_id = $1', [channelId]);
+    await client.query('DELETE FROM channels WHERE id = $1', [channelId]);
+    await client.query('COMMIT');
+
+    for (const m of msgFiles.rows) {
+      for (const url of [m.image_url, m.file_url, m.voice_url]) {
+        if (url) fs.unlink(path.join(UPLOADS_DIR, path.basename(url)), () => {});
+      }
+    }
+    broadcastToChannel(channelId, { type: 'channel_deleted', channelId });
+    res.json({ ok: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: 'No se pudo borrar el grupo' });
+  } finally {
+    client.release();
+  }
+});
+
 for (const action of ['pin', 'mute', 'archive']) {
   const table = { pin: 'channel_pinned', mute: 'channel_muted', archive: 'channel_archived' }[action];
   const col = { pin: 'pinned_at', mute: 'muted_at', archive: 'archived_at' }[action];
@@ -587,7 +641,18 @@ app.post('/api/channels/:id/read', authMiddleware, async (req, res) => {
     INSERT INTO read_state (channel_id, user_id, last_read_message_id, updated_at) VALUES ($1, $2, $3, $4)
     ON CONFLICT (channel_id, user_id) DO UPDATE SET last_read_message_id = GREATEST(read_state.last_read_message_id, excluded.last_read_message_id), updated_at = excluded.updated_at
   `, [channelId, req.user.id, lastId, Date.now()]);
+  if (lastId > 0) {
+    broadcastToChannel(channelId, { type: 'read_receipt', channelId, userId: req.user.id, lastReadMessageId: lastId });
+  }
   res.json({ ok: true });
+});
+
+// ---- Quien ha leido hasta donde en un canal (para pintar los ✓✓) ----
+app.get('/api/channels/:id/read-state', authMiddleware, async (req, res) => {
+  const channelId = parseInt(req.params.id);
+  if (!(await isMember(channelId, req.user.id))) return res.status(403).json({ error: 'No perteneces a ese grupo' });
+  const rows = await q('SELECT user_id, last_read_message_id FROM read_state WHERE channel_id = $1', [channelId]);
+  res.json({ readState: rows });
 });
 
 async function replyPreview(replyToId) {
@@ -600,10 +665,15 @@ async function reactionsSummary(messageId) {
   return q('SELECT emoji, COUNT(*) as count FROM message_reactions WHERE message_id = $1 GROUP BY emoji', [messageId]);
 }
 async function hydrateMessage(row) {
+  let sharedContact = row.shared_contact !== undefined ? row.shared_contact : null;
+  if (sharedContact === null && row.shared_contact_username) {
+    sharedContact = await qOne('SELECT username, display_name, avatar_url FROM users WHERE username = $1', [row.shared_contact_username]);
+  }
   return {
     ...row,
     reply_preview: await replyPreview(row.reply_to_id),
     reactions: await reactionsSummary(row.id),
+    shared_contact: sharedContact,
   };
 }
 
@@ -631,23 +701,28 @@ app.get('/api/messages', authMiddleware, async (req, res) => {
   res.json({ messages: hydrated });
 });
 
-async function insertAndBroadcastMessage({ channelId, userId, username, displayName, text, imageUrl, fileUrl, fileName, fileSize, voiceUrl, voiceDuration, lat, lng, replyToId, scheduledAt, selfDestructMinutes }) {
+async function insertAndBroadcastMessage({ channelId, userId, username, displayName, text, imageUrl, fileUrl, fileName, fileSize, voiceUrl, voiceDuration, lat, lng, replyToId, scheduledAt, selfDestructMinutes, sharedContactUsername }) {
   const createdAt = Date.now();
   const selfDestructAt = selfDestructMinutes ? createdAt + selfDestructMinutes * 60 * 1000 : null;
   const info = await qOne(`
-    INSERT INTO messages (channel_id, user_id, text, image_url, file_url, file_name, file_size, voice_url, voice_duration, location_lat, location_lng, reply_to_id, scheduled_at, self_destruct_at, created_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id
-  `, [channelId, userId, text || null, imageUrl || null, fileUrl || null, fileName || null, fileSize || null, voiceUrl || null, voiceDuration || null, lat || null, lng || null, replyToId || null, scheduledAt || null, selfDestructAt, createdAt]);
+    INSERT INTO messages (channel_id, user_id, text, image_url, file_url, file_name, file_size, voice_url, voice_duration, location_lat, location_lng, reply_to_id, shared_contact_username, scheduled_at, self_destruct_at, created_at)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id
+  `, [channelId, userId, text || null, imageUrl || null, fileUrl || null, fileName || null, fileSize || null, voiceUrl || null, voiceDuration || null, lat || null, lng || null, replyToId || null, sharedContactUsername || null, scheduledAt || null, selfDestructAt, createdAt]);
 
   const mentions = await extractMentions(text);
   for (const u of mentions) await pool.query('INSERT INTO message_mentions (message_id, mentioned_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [info.id, u.id]);
 
   const senderRow = await qOne('SELECT avatar_url FROM users WHERE id = $1', [userId]);
+  let sharedContact = null;
+  if (sharedContactUsername) {
+    sharedContact = await qOne('SELECT username, display_name, avatar_url FROM users WHERE username = $1', [sharedContactUsername]);
+  }
   const message = await hydrateMessage({
     id: info.id, channel_id: channelId, text: text || null, image_url: imageUrl || null,
     file_url: fileUrl || null, file_name: fileName || null, file_size: fileSize || null,
     voice_url: voiceUrl || null, voice_duration: voiceDuration || null,
     location_lat: lat || null, location_lng: lng || null, reply_to_id: replyToId || null,
+    shared_contact_username: sharedContactUsername || null, shared_contact: sharedContact,
     scheduled_at: scheduledAt || null, self_destruct_at: selfDestructAt, edited_at: null, pinned: 0,
     created_at: createdAt, username, display_name: displayName, avatar_url: senderRow ? senderRow.avatar_url : null,
   });
@@ -655,6 +730,15 @@ async function insertAndBroadcastMessage({ channelId, userId, username, displayN
   if (!scheduledAt || scheduledAt <= Date.now()) {
     broadcastToChannel(channelId, { type: 'message', message });
   }
+
+  // Si es un chat directo y la otra persona lo tenia "eliminado" (archivado
+  // solo para ella), reaparece en su lista al recibir un mensaje nuevo —
+  // igual que en WhatsApp.
+  const channelRow = await qOne('SELECT is_direct FROM channels WHERE id = $1', [channelId]);
+  if (channelRow && channelRow.is_direct) {
+    await pool.query('DELETE FROM channel_archived WHERE channel_id = $1 AND user_id != $2', [channelId, userId]);
+  }
+
   return message;
 }
 
@@ -942,7 +1026,7 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    if (data.type === 'message' && info.channelId && ((data.text && data.text.trim()) || data.imageUrl || data.fileUrl || data.voiceUrl || (data.lat && data.lng))) {
+    if (data.type === 'message' && info.channelId && ((data.text && data.text.trim()) || data.imageUrl || data.fileUrl || data.voiceUrl || (data.lat && data.lng) || data.sharedContactUsername)) {
       const channelId = info.channelId;
       const channel = await qOne('SELECT is_announcement_only FROM channels WHERE id = $1', [channelId]);
       if (channel && channel.is_announcement_only && !(await isChannelAdmin(channelId, info.userId))) return;
@@ -952,7 +1036,7 @@ wss.on('connection', (ws) => {
         channelId, userId: info.userId, username: info.username, displayName: info.displayName,
         text: cleanText, imageUrl: data.imageUrl, fileUrl: data.fileUrl, fileName: data.fileName, fileSize: data.fileSize,
         voiceUrl: data.voiceUrl, voiceDuration: data.voiceDuration, lat: data.lat, lng: data.lng,
-        replyToId: data.replyToId, selfDestructMinutes: data.selfDestructMinutes,
+        replyToId: data.replyToId, selfDestructMinutes: data.selfDestructMinutes, sharedContactUsername: data.sharedContactUsername,
       });
 
       notifyChannelMembers(channelId, info.userId, info.displayName, cleanText, activeUserIdsInChannel(channelId)).catch(() => {});

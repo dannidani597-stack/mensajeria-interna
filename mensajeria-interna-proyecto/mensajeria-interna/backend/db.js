@@ -67,6 +67,7 @@ async function initDb() {
       voice_url TEXT, voice_duration INTEGER,
       location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION,
       reply_to_id INTEGER,
+      shared_contact_username TEXT,
       edited_at BIGINT, scheduled_at BIGINT, self_destruct_at BIGINT,
       pinned INTEGER DEFAULT 0,
       created_at BIGINT NOT NULL
@@ -119,6 +120,7 @@ async function initDb() {
 
   // Migracion segura para bases de datos que ya existian antes de esta columna.
   await pool.query(`ALTER TABLE channels ADD COLUMN IF NOT EXISTS is_direct INTEGER DEFAULT 0`);
+  await pool.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS shared_contact_username TEXT`);
 
   let general = (await pool.query('SELECT id FROM channels WHERE name = $1', ['general'])).rows[0];
   if (!general) {
